@@ -85,6 +85,27 @@ impl ClientConfig {
         self
     }
 
+    /// Apply caller-supplied overrides; `None` keeps the default.
+    ///
+    /// The FFI boundaries use this so the 44-field/option mapping exists once.
+    pub fn apply_overrides(&mut self, overrides: ConfigOverrides) {
+        if let Some(value) = overrides.image_base_url {
+            self.image_base_url = value;
+        }
+        if let Some(value) = overrides.account_base_url {
+            self.account_base_url = value;
+        }
+        if let Some(value) = overrides.legacy_image_base_url {
+            self.legacy_image_base_url = value;
+        }
+        if let Some(value) = overrides.timeout {
+            self.timeout = value;
+        }
+        if let Some(value) = overrides.vibe_cache_entries {
+            self.vibe_cache_entries = value;
+        }
+    }
+
     /// Validate the configuration (credentials present, URLs well-formed).
     pub fn validate(&self) -> Result<(), Error> {
         self.credentials.validate()?;
@@ -93,15 +114,36 @@ impl ClientConfig {
             ("account_base_url", &self.account_base_url),
             ("legacy_image_base_url", &self.legacy_image_base_url),
         ] {
-            if !url.starts_with("http://") && !url.starts_with("https://") {
-                return Err(Error::config(format!("{name} must be an http(s) URL")));
-            }
+            validate_base_url(name, url)?;
         }
         if self.vibe_cache_entries == 0 {
             return Err(Error::config("vibe_cache_entries must be positive"));
         }
         Ok(())
     }
+}
+
+/// Optional config overrides, shared by the FFI boundaries.
+#[derive(Debug, Clone, Default)]
+pub struct ConfigOverrides {
+    /// Image host.
+    pub image_base_url: Option<String>,
+    /// Account host.
+    pub account_base_url: Option<String>,
+    /// Legacy host for `/ai/annotate-image`.
+    pub legacy_image_base_url: Option<String>,
+    /// Per-request timeout.
+    pub timeout: Option<std::time::Duration>,
+    /// Vibe cache capacity.
+    pub vibe_cache_entries: Option<usize>,
+}
+
+/// A base URL must be an absolute http(s) URL.
+fn validate_base_url(name: &str, url: &str) -> Result<(), Error> {
+    if url.starts_with("http://") || url.starts_with("https://") {
+        return Ok(());
+    }
+    Err(Error::config(format!("{name} must be an http(s) URL")))
 }
 
 #[cfg(test)]

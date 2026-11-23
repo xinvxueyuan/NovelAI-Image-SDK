@@ -28,7 +28,7 @@ allow = [
   "ISC",
   "Unicode-3.0",
   "Zlib",
-  "MPL-2.0", # UniFFI runtime; FFI boundary only (see THIRD_PARTY_NOTICES.md)
+  "MPL-2.0",  # UniFFI runtime; FFI boundary only (see THIRD_PARTY_NOTICES.md)
   "CDLA-Permissive-2.0",
 ]
 confidence-threshold = 0.93
@@ -52,4 +52,3 @@ unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 allow-git = []
-

@@ -12,7 +12,6 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use base64::Engine as _;
-use futures_util::StreamExt;
 use lru::LruCache;
 use serde_json::{Map, Value};
 use sha2::Digest;
@@ -20,14 +19,12 @@ use tokio::sync::OnceCell;
 
 use crate::auth::{TrackingHeaders, access_key};
 use crate::config::ClientConfig;
-use crate::constants::{ControlNetModel, DirectorTool, Emotion, EmotionLevel, Endpoint, Model};
+use crate::constants::{Endpoint, Model};
 use crate::error::Error;
-use crate::imaging::parse_image;
 use crate::models::GenerationRequest;
 use crate::payload::build_generation_payload;
 use crate::response::{
-    GenerationEvent, MessagePackStreamParser, NovelAIImage, check_status, is_zip,
-    parse_messagepack_images, parse_zip_images,
+    GenerationEvent, NovelAIImage, check_status, is_zip, parse_messagepack_images, parse_zip_images,
 };
 
 /// A stream of generation events.
@@ -92,7 +89,6 @@ impl NovelAiClient {
     pub fn config(&self) -> &ClientConfig {
         &self.inner.config
     }
-
     // ── auth ───────────────────────────────────────────────────────────────
 
     /// The bearer token, logging in with derived credentials if needed.
@@ -164,75 +160,6 @@ impl NovelAiClient {
             )
             .await?;
         decode_images(&content)
-    }
-
-    /// Stream V4 / V4.5 / V5 events as the driver produces them.
-    ///
-    /// V3 models are rejected: only V4+ speaks MessagePack. Dropping the
-    /// stream cancels the request.
-    pub async fn stream_generation(
-        &self,
-        request: &GenerationRequest,
-    ) -> Result<GenerationStream, Error> {
-        let request = request.clone().normalize()?;
-        let prepared = self.prepare_references(request).await?;
-        if !prepared.model.is_v4() {
-            return Err(Error::validation(
-                "real-time generation requires a V4+ / V5 model",
-            ));
-        }
-        let url = format!(
-            "{}{}",
-            self.inner.config.image_base_url,
-            Endpoint::ImageStream.as_str()
-        );
-        let token = self.access_token().await?;
-        let request_builder = self
-            .base_request_with(
-                wreq::Method::POST,
-                &url,
-                Some(&token),
-                &[("Accept", "application/x-msgpack")],
-            )
-            .json(&build_generation_payload(&prepared));
-        let timeout = self.inner.config.timeout;
-
-        // `wreq`'s client-wide timeout is a *total* deadline and would kill
-        // long generations; apply an idle timeout per chunk read instead.
-        let response = tokio::time::timeout(timeout, request_builder.send())
-            .await
-            .map_err(|_| Error::Timeout {
-                message: "NovelAI streaming request timed out".into(),
-            })?
-            .map_err(transport_error)?;
-        let status = response.status().as_u16();
-        let mut body = response.bytes_stream();
-        if status >= 400 {
-            let mut collected = Vec::new();
-            while let Some(chunk) = body.next().await {
-                collected.extend_from_slice(&chunk.map_err(transport_error)?);
-            }
-            check_status(status, &collected)?;
-        }
-        let stream = async_stream::try_stream! {
-            let mut parser = MessagePackStreamParser::new();
-            loop {
-                let chunk = match tokio::time::timeout(timeout, body.next()).await {
-                    Err(_) => {
-                        Err(Error::Timeout {
-                            message: "NovelAI streaming request timed out".into(),
-                        })?
-                    }
-                    Ok(None) => break,
-                    Ok(Some(chunk)) => chunk.map_err(transport_error)?,
-                };
-                for event in parser.feed(&chunk)? {
-                    yield event;
-                }
-            }
-            parser.finish()?;
-        };
-        Ok(stream.boxed())
     }
 
     /// Encode a vibe-transfer reference image into a reusable token.
@@ -332,220 +259,6 @@ impl NovelAiClient {
         Ok(request)
     }
 
-    // ── tools ────────────────────────────────────────────────────────────
-
-    /// Run a Director tool (`/ai/augment-image`).
-    pub async fn director(
-        &self,
-        tool: DirectorTool,
-        image: &[u8],
-        prompt: &str,
-        defry: u32,
-        emotion: Option<Emotion>,
-        emotion_level: EmotionLevel,
-    ) -> Result<NovelAIImage, Error> {
-        let parsed = parse_image(image)?;
-        let (prompt, defry) = if tool == DirectorTool::EMOTION {
-            let emotion =
-                emotion.ok_or_else(|| Error::validation("emotion tool requires an emotion"))?;
-            let prompt = format!(
-                "{};;{}",
-                emotion.as_wire(),
-                if prompt.is_empty() {
-                    String::new()
-                } else {
-                    format!("{prompt},")
-                }
-            );
-            (prompt, u32::from(emotion_level.as_u8()))
-        } else {
-            (prompt.to_owned(), defry)
-        };
-
-        let mut body = Map::new();
-        body.insert("req_type".into(), Value::from(tool.as_wire()));
-        body.insert("width".into(), Value::from(parsed.width));
-        body.insert("height".into(), Value::from(parsed.height));
-        body.insert("image".into(), Value::from(parsed.base64()));
-        body.insert("prompt".into(), Value::from(prompt));
-        body.insert("defry".into(), Value::from(defry));
-        let content = self
-            .request(
-                wreq::Method::POST,
-                &format!(
-                    "{}{}",
-                    self.inner.config.image_base_url,
-                    Endpoint::Director.as_str()
-                ),
-                true,
-                Some(Value::Object(body)),
-                None,
-                None,
-            )
-            .await?;
-        first_image(content, &format!("{}.png", tool.as_wire()))
-    }
-
-    /// Upscale an image 4x with NovelAI's standalone upscaler.
-    ///
-    /// The endpoint is 4x only (the API exposes no scaling factor) and only
-    /// the V5 line supports standalone upscaling.
-    pub async fn upscale(
-        &self,
-        image: &[u8],
-        factor: u32,
-        model: Option<Model>,
-    ) -> Result<NovelAIImage, Error> {
-        if factor != 4 {
-            return Err(Error::validation(
-                "NovelAI's standalone upscaler is 4x only; factor must be 4 \
-                 (the API accepts no other scaling factor)",
-            ));
-        }
-        let upscale_model = model.unwrap_or(Model::V5);
-        if !upscale_model.supports_upscale() {
-            return Err(Error::validation(format!(
-                "model {:?} does not support standalone upscaling; use one of: {}",
-                upscale_model.as_wire(),
-                crate::constants::UPSCALE_MODELS
-                    .iter()
-                    .map(|m| format!("{:?}", m.as_wire()))
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            )));
-        }
-        let parsed = parse_image(image)?;
-        let mut body = Map::new();
-        body.insert("image".into(), Value::from(parsed.base64()));
-        body.insert("model".into(), Value::from(upscale_model.as_wire()));
-        body.insert("declared_blur_sigma".into(), Value::from(0));
-        let content = self
-            .request(
-                wreq::Method::POST,
-                &format!(
-                    "{}{}",
-                    self.inner.config.image_base_url,
-                    Endpoint::Upscale.as_str()
-                ),
-                true,
-                Some(Value::Object(body)),
-                None,
-                None,
-            )
-            .await?;
-        first_image(content, "upscaled.png")
-    }
-
-    /// Annotate an image with a ControlNet model.
-    ///
-    /// `/ai/annotate-image` is the one endpoint still on the legacy host.
-    pub async fn annotate(
-        &self,
-        image: &[u8],
-        model: ControlNetModel,
-    ) -> Result<NovelAIImage, Error> {
-        let parsed = parse_image(image)?;
-        let mut parameters = Map::new();
-        parameters.insert("image".into(), Value::from(parsed.base64()));
-        let mut body = Map::new();
-        body.insert("model".into(), Value::from(model.as_wire()));
-        body.insert("parameters".into(), Value::Object(parameters));
-        let content = self
-            .request(
-                wreq::Method::POST,
-                &format!(
-                    "{}{}",
-                    self.inner.config.legacy_image_base_url,
-                    Endpoint::Annotate.as_str()
-                ),
-                true,
-                Some(Value::Object(body)),
-                None,
-                None,
-            )
-            .await?;
-        first_image(content, &format!("{}.png", model.as_wire()))
-    }
-
-    /// Ask NovelAI's tagger for tags completing a partial prompt.
-    pub async fn suggest_tags(
-        &self,
-        prompt: &str,
-        model: Model,
-        language: &str,
-    ) -> Result<Vec<Map<String, Value>>, Error> {
-        let params = [
-            ("model", model.as_wire()),
-            ("prompt", prompt),
-            ("lang", language),
-        ];
-        let content = self
-            .request(
-                wreq::Method::GET,
-                &format!(
-                    "{}{}",
-                    self.inner.config.image_base_url,
-                    Endpoint::SuggestTags.as_str()
-                ),
-                true,
-                None,
-                Some(&params),
-                None,
-            )
-            .await?;
-        let value = json_object(&content)?;
-        let tags = value
-            .get("tags")
-            .cloned()
-            .unwrap_or(Value::Array(Vec::new()));
-        let Value::Array(items) = tags else {
-            return Err(Error::response("NovelAI returned invalid tag suggestions"));
-        };
-        items
-            .into_iter()
-            .map(|item| match item {
-                Value::Object(map) => Ok(map),
-                _ => Err(Error::response("NovelAI returned invalid tag suggestions")),
-            })
-            .collect()
-    }
-
-    // ── account ──────────────────────────────────────────────────────────
-
-    /// The account's subscription record.
-    pub async fn get_subscription(&self) -> Result<Map<String, Value>, Error> {
-        self.account_json(Endpoint::Subscription).await
-    }
-
-    /// The account's user-data record.
-    pub async fn get_user_data(&self) -> Result<Map<String, Value>, Error> {
-        self.account_json(Endpoint::UserData).await
-    }
-
-    async fn account_json(&self, endpoint: Endpoint) -> Result<Map<String, Value>, Error> {
-        let content = self
-            .request(
-                wreq::Method::GET,
-                &format!(
-                    "{}{}",
-                    self.inner.config.account_base_url,
-                    endpoint.as_str()
-                ),
-                true,
-                None,
-                None,
-                None,
-            )
-            .await?;
-        let value = json_object(&content)?;
-        match value {
-            Value::Object(map) => Ok(map),
-            _ => Err(Error::response(
-                "NovelAI returned a non-object JSON response",
-            )),
-        }
-    }
-
     // ── transport ────────────────────────────────────────────────────────
 
     /// Build a request with the Chrome header block, tracking headers and
@@ -643,7 +356,22 @@ impl NovelAiClient {
     }
 }
 
+mod stream;
+mod tools;
+
 // ── helpers ─────────────────────────────────────────────────────────────────
+
+/// Read a whole response body (used for error responses and streams).
+pub(super) async fn drain_body(
+    body: &mut (impl futures_util::Stream<Item = Result<bytes::Bytes, wreq::Error>> + Unpin),
+) -> Result<Vec<u8>, Error> {
+    use futures_util::StreamExt;
+    let mut collected = Vec::new();
+    while let Some(chunk) = body.next().await {
+        collected.extend_from_slice(&chunk.map_err(transport_error)?);
+    }
+    Ok(collected)
+}
 
 fn transport_error(error: wreq::Error) -> Error {
     let message = if error.is_timeout() {
@@ -744,27 +472,4 @@ pub fn default_headers() -> HashMap<String, String> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn upscale_rejects_non_4x_and_unsupported_models() {
-        // The validation runs before any I/O, so a config-less client is fine.
-        // (Credential validation requires a token.)
-        let client = NovelAiClient::new(ClientConfig::new(crate::auth::Credentials::token("t")))
-            .expect("client");
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async {
-            let err = client
-                .upscale(crate::imaging::TINY_PNG, 2, None)
-                .await
-                .unwrap_err();
-            assert!(err.to_string().contains("4x only"));
-            let err = client
-                .upscale(crate::imaging::TINY_PNG, 4, Some(Model::V4_5))
-                .await
-                .unwrap_err();
-            assert!(err.to_string().contains("does not support standalone"));
-        });
-    }
-}
+mod tests;

@@ -108,10 +108,11 @@ impl BrowserProfile {
     /// `*/*, application/x-msgpack`. The client sets `Accept` exactly once per
     /// request instead.
     pub fn apply_headers(&self, mut builder: wreq::RequestBuilder) -> wreq::RequestBuilder {
-        for (name, value) in self.headers() {
-            if name == "Accept" {
-                continue;
-            }
+        for (name, value) in self
+            .headers()
+            .into_iter()
+            .filter(|(name, _)| *name != "Accept")
+        {
             builder = builder.header(name, value);
         }
         builder

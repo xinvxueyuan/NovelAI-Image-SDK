@@ -1,20 +1,19 @@
 [package]
 name = "novelai-image-ffi-uniffi"
-description = "UniFFI boundary for novelai-image-sdk (not published to crates.io)"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
-license.workspace = true
+description = "UniFFI boundary for novelai-image-sdk (not published to crates.io)"
 repository.workspace = true
+license.workspace = true
 publish = false
 
 [lib]
+crate-type = ["cdylib", "lib", "staticlib"]
 name = "novelai_image_sdk_ffi"
-crate-type = ["cdylib", "staticlib", "lib"]
 
 [dependencies]
 novelai-image-sdk = { path = "../novelai-image-sdk", version = "0.1.0-dev.1" }
-uniffi = { workspace = true }
-tokio = { workspace = true }
-thiserror = { workspace = true }
 serde_json = { workspace = true }
+thiserror = { workspace = true }
+uniffi = { workspace = true }

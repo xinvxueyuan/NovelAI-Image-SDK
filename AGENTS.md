@@ -65,10 +65,18 @@ scripts/gen_fixtures.py         # regenerates them
    `uniffi`. The core crate must stay free of it.
 10. **Actions are SHA-pinned**; commits are gitmoji + Conventional Commits
     with DCO sign-off (`--no-verify` is forbidden).
+11. **The clippy policy is stricter than default** (`clippy.toml`): functions
+    over 60 lines and blocks nested deeper than 3 are errors. Split by role
+    (production into modules, tests beside them) — every file must stay at or
+    below 500 lines (`scripts/check-file-length.mjs`).
+12. **`rust-version`, the `rust-toolchain.toml` channel and `clippy.toml` msrv
+    move together.** Change all three in the same commit.
 
 ## Common commands
 
 ```bash
+cargo xtask check                           # the whole gate: fmt, clippy, nextest,
+                                           # deny, REUSE, typos, tombi, file length, prek
 cargo test --workspace --all-features
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo deny check

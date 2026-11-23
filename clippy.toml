@@ -1,0 +1,10 @@
+# Must equal `rust-version` in Cargo.toml and the channel in rust-toolchain.toml.
+msrv = "1.100.0"
+allow-dbg-in-tests = true
+
+# A function that needs more lines than this is doing more than one thing.
+too-many-lines-threshold = 60
+
+# Nesting past this depth reads as control flow you have to hold in your head;
+# extract a function or return early instead.
+excessive-nesting-threshold = 3

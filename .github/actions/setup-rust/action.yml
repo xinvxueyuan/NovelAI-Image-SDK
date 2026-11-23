@@ -1,0 +1,45 @@
+name: Prepare Rust
+description: Set up the pinned toolchain, BoringSSL build prerequisites, and Rust dependency cache
+inputs:
+  save-cache:
+    description: Allow this run to save the Rust dependency cache
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    # BoringSSL (via `btls-sys`) is compiled from source: it needs cmake, NASM
+    # and libclang for bindgen.
+    - name: Install BoringSSL build prerequisites (Linux)
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends cmake nasm libclang-dev
+
+    - name: Install BoringSSL build prerequisites (macOS)
+      if: runner.os == 'macOS'
+      shell: bash
+      run: brew install cmake nasm
+
+    - name: Install BoringSSL build prerequisites (Windows)
+      if: runner.os == 'Windows'
+      shell: bash
+      run: choco install llvm nasm -y --no-progress
+
+    - name: Install pinned Rust toolchain
+      shell: bash
+      run: |
+        rustup toolchain install --profile minimal --component rustfmt --component clippy
+        rustc --version
+
+    - name: Restore Rust dependency cache
+      uses: Swatinem/rust-cache@2201cc584a476d1b508be977bbe4b7d1c7a52e9c # v2.9.3
+      with:
+        save-if: ${{ inputs.save-cache }}
+        cache-on-failure: true
+        cache-bin: false
+
+    # rust-cache overrides the workspace default with CARGO_INCREMENTAL=0.
+    - name: Enable incremental compilation
+      shell: bash
+      run: echo 'CARGO_INCREMENTAL=1' >> "$GITHUB_ENV"

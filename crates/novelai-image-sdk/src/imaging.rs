@@ -36,6 +36,21 @@ fn png_dimensions(data: &[u8]) -> Result<(u32, u32), Error> {
     Ok((width, height))
 }
 
+/// Start-of-frame markers carrying the image dimensions.
+fn is_jpeg_sof_marker(marker: u16) -> bool {
+    (0xFFC0..0xFFC4).contains(&marker)
+        || (0xFFC5..0xFFC8).contains(&marker)
+        || (0xFFC9..0xFFCC).contains(&marker)
+}
+
+/// Read `(width, height)` from a SOF segment header at `pos`.
+fn jpeg_sof_dimensions(data: &[u8], pos: usize) -> Option<(u32, u32)> {
+    let payload = data.get(pos..pos + 5)?;
+    let height = u16::from_be_bytes([payload[1], payload[2]]) as u32;
+    let width = u16::from_be_bytes([payload[3], payload[4]]) as u32;
+    Some((width, height))
+}
+
 fn jpeg_dimensions(data: &[u8]) -> Result<(u32, u32), Error> {
     let mut pos = 2usize;
     while pos + 4 <= data.len() {
@@ -52,17 +67,9 @@ fn jpeg_dimensions(data: &[u8]) -> Result<(u32, u32), Error> {
         if segment_length < 2 {
             break;
         }
-        if (0xFFC0..0xFFC4).contains(&marker)
-            || (0xFFC5..0xFFC8).contains(&marker)
-            || (0xFFC9..0xFFCC).contains(&marker)
-        {
-            if pos + 5 > data.len() {
-                break;
-            }
-            let payload = &data[pos..pos + 5];
-            let width = u16::from_be_bytes([payload[3], payload[4]]) as u32;
-            let height = u16::from_be_bytes([payload[1], payload[2]]) as u32;
-            return Ok((width, height));
+        if is_jpeg_sof_marker(marker) {
+            return jpeg_sof_dimensions(data, pos)
+                .map_or_else(|| Err(Error::image("JPEG dimensions were not found")), Ok);
         }
         pos += segment_length - 2;
     }

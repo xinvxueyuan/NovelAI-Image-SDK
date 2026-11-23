@@ -17,6 +17,9 @@ use novelai_image_sdk::client::NovelAiClient as CoreClient;
 use novelai_image_sdk::config::ClientConfig as CoreConfig;
 use novelai_image_sdk::constants as core;
 
+mod types;
+pub use types::*;
+
 fn to_js_error(error: novelai_image_sdk::error::Error) -> napi::Error {
     napi::Error::from_reason(error.to_string())
 }
@@ -65,180 +68,17 @@ pub struct ClientOptions {
     pub vibe_cache_entries: Option<u32>,
 }
 
-/// An image returned by NovelAI.
-#[napi(object)]
-pub struct Image {
-    /// Suggested filename.
-    pub filename: String,
-    /// Raw PNG or JPEG bytes.
-    pub data: Buffer,
-}
-
-/// A streaming-generation event.
-#[napi(object)]
-pub struct GenerationEvent {
-    /// `intermediate` or `final`.
-    pub event_type: String,
-    /// Sample index.
-    pub sample_index: i64,
-    /// Sampling step.
-    pub step_index: i64,
-    /// Generation id.
-    pub generation_id: String,
-    /// Noise sigma.
-    pub sigma: f64,
-    /// The image at this step.
-    pub image: Image,
-}
-
-/// One tag suggested by the tagger.
-#[napi(object)]
-pub struct TagSuggestion {
-    /// The tag text.
-    pub tag: String,
-    /// Co-occurrence count.
-    pub count: i64,
-    /// Confidence in `0.0..=1.0`.
-    pub confidence: f64,
-}
-
-/// Model capability information.
-#[napi(object)]
-pub struct ModelInfo {
-    /// The wire id.
-    pub id: String,
-    /// Structured-prompt (V4+) model.
-    pub is_v4: bool,
-    /// V5 family.
-    pub is_v5: bool,
-    /// Accepts an inpainting mask.
-    pub inpaint: bool,
-    /// Supports vibe transfer.
-    pub supports_vibe: bool,
-    /// Supports standalone upscaling.
-    pub supports_upscale: bool,
-    /// NovelAI `params_version`.
-    pub params_version: u8,
-    /// Quality tags appended to the prompt.
-    pub quality_tags: String,
-    /// The four undesired-content presets.
-    pub uc_presets: Vec<String>,
-}
-
-/// A generation request. Every field is optional; the core builder applies
-/// defaults and the reference validation.
-#[napi(object)]
-pub struct GenerationRequest {
-    /// The positive prompt (required).
-    pub prompt: String,
-    /// Base caption for structured-prompt models.
-    pub base_caption: Option<String>,
-    /// Model id; defaults to `nai-diffusion-4-5-full`.
-    pub model: Option<String>,
-    /// `generate`, `img2img`, or `infill`.
-    pub action: Option<String>,
-    /// Undesired content.
-    pub negative_prompt: Option<String>,
-    /// Width in pixels (rounded up to a multiple of 64).
-    pub width: Option<u32>,
-    /// Height in pixels.
-    pub height: Option<u32>,
-    /// Number of samples.
-    pub n_samples: Option<u32>,
-    /// Sampling steps.
-    pub steps: Option<u32>,
-    /// Guidance scale.
-    pub scale: Option<f64>,
-    /// Sampler wire id.
-    pub sampler: Option<String>,
-    /// Seed (`0` = provider-random).
-    pub seed: Option<u32>,
-    /// img2img extra noise seed.
-    pub extra_noise_seed: Option<u32>,
-    /// Noise schedule wire id.
-    pub noise_schedule: Option<String>,
-    /// Append quality tags.
-    pub quality: Option<bool>,
-    /// Undesired-content preset index (`0..=3`).
-    pub uc_preset: Option<u8>,
-    /// CFG rescale.
-    pub cfg_rescale: Option<f64>,
-    /// Source image, base64.
-    pub image: Option<String>,
-    /// Inpainting mask, base64.
-    pub mask: Option<String>,
-    /// img2img denoise strength.
-    pub strength: Option<f64>,
-    /// img2img noise.
-    pub noise: Option<f64>,
-    /// Vibe reference tokens.
-    pub references: Option<Vec<String>>,
-    /// Estimate cost only.
-    pub estimate_only: Option<bool>,
-}
-
-impl GenerationRequest {
-    fn to_core(&self) -> Result<novelai_image_sdk::models::GenerationRequest> {
-        use novelai_image_sdk::models::GenerationRequest as Core;
-        let mut builder = Core::new(self.prompt.clone());
-        if let Some(value) = &self.base_caption {
-            builder = builder.base_caption(Some(value.clone()));
+impl ClientOptions {
+    fn to_overrides(&self) -> novelai_image_sdk::config::ConfigOverrides {
+        novelai_image_sdk::config::ConfigOverrides {
+            image_base_url: self.image_base_url.clone(),
+            account_base_url: self.account_base_url.clone(),
+            legacy_image_base_url: self.legacy_image_base_url.clone(),
+            timeout: self
+                .timeout_secs
+                .map(|value| std::time::Duration::from_secs(u64::from(value))),
+            vibe_cache_entries: self.vibe_cache_entries.map(|value| value as usize),
         }
-        if let Some(value) = &self.model {
-            builder = builder.model(value.parse().map_err(to_js_error)?);
-        }
-        if let Some(value) = &self.action {
-            builder = builder.action(value.parse().map_err(to_js_error)?);
-        }
-        if let Some(value) = &self.negative_prompt {
-            builder = builder.negative_prompt(value.clone());
-        }
-        if let Some(value) = self.width {
-            builder = builder.width(value);
-        }
-        if let Some(value) = self.height {
-            builder = builder.height(value);
-        }
-        if let Some(value) = self.n_samples {
-            builder = builder.n_samples(value);
-        }
-        if let Some(value) = self.steps {
-            builder = builder.steps(value);
-        }
-        if let Some(value) = self.scale {
-            builder = builder.scale(value);
-        }
-        if let Some(value) = &self.sampler {
-            builder = builder.sampler(value.parse().map_err(to_js_error)?);
-        }
-        if let Some(value) = self.seed {
-            builder = builder.seed(value);
-        }
-        if let Some(value) = self.extra_noise_seed {
-            builder = builder.extra_noise_seed(Some(value));
-        }
-        if let Some(value) = &self.noise_schedule {
-            builder = builder.noise_schedule(value.parse().map_err(to_js_error)?);
-        }
-        if let Some(value) = self.quality {
-            builder = builder.quality(value);
-        }
-        if let Some(value) = self.uc_preset {
-            builder = builder.uc_preset(value);
-        }
-        if let Some(value) = self.cfg_rescale {
-            builder = builder.cfg_rescale(value);
-        }
-        builder = builder
-            .image(self.image.clone())
-            .mask(self.mask.clone())
-            .strength(self.strength)
-            .noise(self.noise)
-            .references(self.references.clone().unwrap_or_default());
-        if let Some(value) = self.estimate_only {
-            builder = builder.estimate_only(value);
-        }
-        builder.build().map_err(to_js_error)
     }
 }
 
@@ -276,22 +116,8 @@ impl NovelAiClient {
     pub fn new(credentials: Credentials, options: Option<ClientOptions>) -> Result<Self> {
         let credentials = credentials.to_core()?;
         let mut config = CoreConfig::new(credentials);
-        if let Some(options) = options {
-            if let Some(value) = options.image_base_url {
-                config = config.with_image_base_url(value);
-            }
-            if let Some(value) = options.account_base_url {
-                config = config.with_account_base_url(value);
-            }
-            if let Some(value) = options.legacy_image_base_url {
-                config.legacy_image_base_url = value;
-            }
-            if let Some(value) = options.timeout_secs {
-                config.timeout = std::time::Duration::from_secs(u64::from(value));
-            }
-            if let Some(value) = options.vibe_cache_entries {
-                config.vibe_cache_entries = value as usize;
-            }
+        if let Some(options) = &options {
+            config.apply_overrides(options.to_overrides());
         }
         Ok(Self {
             inner: Arc::new(CoreClient::new(config).map_err(to_js_error)?),
@@ -323,32 +149,13 @@ impl NovelAiClient {
         request: GenerationRequest,
         max_events: Option<u32>,
     ) -> Result<Vec<GenerationEvent>> {
-        use futures_util::StreamExt;
         let request = request.to_core()?;
-        let mut stream = self
+        let stream = self
             .inner
             .stream_generation(&request)
             .await
             .map_err(to_js_error)?;
-        let mut events = Vec::new();
-        while let Some(event) = stream.next().await {
-            let event = event.map_err(to_js_error)?;
-            events.push(GenerationEvent {
-                event_type: event.event_type,
-                sample_index: event.sample_index,
-                step_index: event.step_index,
-                generation_id: event.generation_id,
-                sigma: event.sigma,
-                image: Image {
-                    filename: event.image.filename,
-                    data: event.image.data.into(),
-                },
-            });
-            if max_events.is_some_and(|max| events.len() >= max as usize) {
-                break;
-            }
-        }
-        Ok(events)
+        collect_js_events(stream, max_events).await
     }
 
     /// Validate and resolve a request without sending it.
@@ -519,6 +326,38 @@ impl NovelAiClient {
     pub async fn get_user_data(&self) -> Result<String> {
         let value = self.inner.get_user_data().await.map_err(to_js_error)?;
         Ok(serde_json::to_string(&value).unwrap_or_default())
+    }
+}
+
+/// Drain a generation stream into at most `max_events` napi events.
+async fn collect_js_events(
+    mut stream: novelai_image_sdk::client::GenerationStream,
+    max_events: Option<u32>,
+) -> Result<Vec<GenerationEvent>> {
+    use futures_util::StreamExt;
+    let limit = max_events.map_or(usize::MAX, |max| max as usize);
+    let mut events = Vec::with_capacity(limit.min(64));
+    while events.len() < limit {
+        let Some(event) = stream.next().await else {
+            break;
+        };
+        events.push(to_js_event(event.map_err(to_js_error)?));
+    }
+    Ok(events)
+}
+
+/// Convert a core event into its napi representation.
+fn to_js_event(event: novelai_image_sdk::response::GenerationEvent) -> GenerationEvent {
+    GenerationEvent {
+        event_type: event.event_type,
+        sample_index: event.sample_index,
+        step_index: event.step_index,
+        generation_id: event.generation_id,
+        sigma: event.sigma,
+        image: Image {
+            filename: event.image.filename,
+            data: event.image.data.into(),
+        },
     }
 }
 

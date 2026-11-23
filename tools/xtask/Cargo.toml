@@ -1,15 +1,15 @@
 [package]
 name = "xtask"
-description = "Repo task runner: live spike, fixtures, bindings, version sync"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+description = "Repo task runner: live spike, fixtures, bindings, version sync"
 license.workspace = true
 publish = false
 
 [dependencies]
-novelai-image-sdk = { path = "../../crates/novelai-image-sdk", version = "0.1.0-dev.1" }
-tokio = { workspace = true, features = ["full"] }
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
+novelai-image-sdk = { path = "../../crates/novelai-image-sdk", version = "0.1.0-dev.1" }
 serde_json = { workspace = true }
+tokio = { workspace = true, features = ["full"] }

@@ -1,0 +1,44 @@
+# typos spellchecker. Only exceptions live here; add a word only after typos
+# flags it on text that is genuinely correct.
+[files]
+extend-exclude = [
+  "target/",
+  "node_modules/",
+  "Cargo.lock",
+  # Golden fixtures are generated from the reference implementation; their
+  # strings are upstream text, not ours to spell-check.
+  "fixtures/golden/",
+]
+
+[default]
+extend-ignore-re = [
+  # Hex ids and hashes are not prose.
+  "[0-9a-f]{7,}",
+]
+
+[default.extend-words]
+# Product and framework names that are not English words.
+novelai = "novelai"
+nai = "nai"
+anlas = "anlas"
+smea = "smea"
+karras = "karras"
+dpmpp = "dpmpp"
+uniffi = "uniffi"
+napi = "napi"
+wreq = "wreq"
+msgpack = "msgpack"
+# NovelAI's ControlNet model id for HED edge detection.
+hed = "hed"
+# Deliberate misspelling in a test that asserts unknown fields are rejected.
+widht = "widht"
+
+[default.extend-identifiers]
+# Wire and crate spellings that are not English words.
+NovelAiClient = "NovelAiClient"
+NovelAI = "NovelAI"
+ucPresetId = "ucPresetId"
+qualityPresetId = "qualityPresetId"
+v4_prompt = "v4_prompt"
+v4_negative_prompt = "v4_negative_prompt"
+inpaintImg2ImgStrength = "inpaintImg2ImgStrength"

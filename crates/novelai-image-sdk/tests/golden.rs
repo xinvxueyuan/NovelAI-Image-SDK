@@ -225,19 +225,19 @@ fn payload_wire_bytes_match_reference() {
 
         // The fixture's `wire` may contain a random extra_noise_seed for
         // image-conditioned requests; compare structurally in that case.
-        if let Ok(expected_wire) = serde_json::from_str::<Value>(case["wire"].as_str().unwrap()) {
-            let mut ours = payload.clone();
-            let mut theirs = expected_wire;
-            if spec.strength.is_some() {
-                ours["parameters"]["extra_noise_seed"] = json!(0);
-                theirs["parameters"]["extra_noise_seed"] = json!(0);
-            }
-            assert_eq!(
-                ours, theirs,
-                "payload #{index} (model {}) differs",
-                spec.model
-            );
+        let expected_wire: Value =
+            serde_json::from_str(case["wire"].as_str().unwrap()).expect("fixture wire is JSON");
+        let mut ours = payload.clone();
+        let mut theirs = expected_wire;
+        if spec.strength.is_some() {
+            ours["parameters"]["extra_noise_seed"] = json!(0);
+            theirs["parameters"]["extra_noise_seed"] = json!(0);
         }
+        assert_eq!(
+            ours, theirs,
+            "payload #{index} (model {}) differs",
+            spec.model
+        );
 
         // Key order must also match: serde_json preserves insertion order.
         let expected_keys: Vec<&str> = case["keys"]["top"]

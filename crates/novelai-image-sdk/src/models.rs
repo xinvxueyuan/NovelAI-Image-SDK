@@ -2,15 +2,17 @@
 //!
 //! Port of the generation subset of `novelai_image_mcp.nai.models`.
 //!
-//! The Python implementation validates and **mutates** in `__post_init__`
-//! (rounding dimensions up to multiples of 64, filling image-conditioned
-//! defaults, generating a random `extra_noise_seed`). Rust constructors cannot
-//! mutate behind the caller's back, so the same checks live in
-//! [`GenerationRequest::normalize`], which the [`GenerationRequestBuilder`] and
-//! the FFI boundary both call.
+//! The Python implementation validates and **mutates** in `__post_init__`;
+//! the same checks live in [`GenerationRequest::normalize`], which the builder
+//! and the FFI boundary both call.
+
+mod helpers;
+
+pub use helpers::{
+    CharacterPrompt, PositionCoord, merge_csv, normalize_negative_prompt, normalize_tags,
+};
 
 use rand::Rng;
-use unicode_casefold::UnicodeCaseFold;
 
 use crate::constants::{Action, Model, NoiseSchedule, Sampler, quality_tags, uc_presets};
 use crate::error::Error;
@@ -18,122 +20,13 @@ use crate::error::Error;
 /// Seed upper bound: an unsigned 32-bit integer.
 pub const MAX_SEED: u64 = u32::MAX as u64;
 
-/// `extra_noise_seed` is drawn below `2**32 - 7` (mirrors the Python code).
-const EXTRA_NOISE_SEED_BOUND: u32 = u32::MAX - 6;
-
-/// Trim tags and remove case-insensitive duplicates while preserving order.
-pub fn normalize_tags<I, S>(values: I) -> Vec<String>
-where
-    I: IntoIterator<Item = S>,
-    S: AsRef<str>,
-{
-    let mut result = Vec::new();
-    let mut seen = std::collections::HashSet::new();
-    for value in values {
-        let normalized = value.as_ref().trim();
-        let key: String = normalized.case_fold().collect();
-        if normalized.is_empty() || !seen.insert(key) {
-            continue;
-        }
-        result.push(normalized.to_owned());
-    }
-    result
-}
-
-/// Split comma/newline negative-prompt text into normalized tags.
-pub fn normalize_negative_prompt(value: Option<&str>) -> Vec<String> {
-    match value {
-        Some(text) if !text.is_empty() => normalize_tags(text.split([',', '\n'])),
-        _ => Vec::new(),
-    }
-}
-
-/// Merge comma-separated tag lists, dropping empty tags and case-insensitive
-/// duplicates (first spelling wins), joined with `", "`.
-pub fn merge_csv<'a>(values: impl IntoIterator<Item = &'a str>) -> String {
-    let mut tags: Vec<&str> = Vec::new();
-    let mut seen = std::collections::HashSet::new();
-    for value in values {
-        for raw_tag in value.split(',') {
-            let tag = raw_tag.trim();
-            if !tag.is_empty() && seen.insert(tag.case_fold().collect::<String>()) {
-                tags.push(tag);
-            }
-        }
-    }
-    tags.join(", ")
-}
-
-/// A character position for multi-character prompts; **clamps** into
-/// `0.1..=0.9` rather than rejecting.
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
-pub struct PositionCoord {
-    /// Horizontal position, clamped to `0.1..=0.9`.
-    pub x: f64,
-    /// Vertical position, clamped to `0.1..=0.9`.
-    pub y: f64,
-}
-
-impl PositionCoord {
-    /// Clamped position.
-    pub fn new(x: f64, y: f64) -> Self {
-        Self {
-            x: x.clamp(0.1, 0.9),
-            y: y.clamp(0.1, 0.9),
-        }
-    }
-}
-
-/// One additional character's prompt and placement.
-///
-/// Coordinates outside `0.1..=0.9` are **rejected** (unlike [`PositionCoord`],
-/// which clamps) — matching the Python `CharacterPrompt`.
-#[derive(Debug, Clone, PartialEq)]
-pub struct CharacterPrompt {
-    /// The character prompt text.
-    pub prompt: String,
-    /// Per-character undesired content.
-    pub negative_prompt: String,
-    /// Horizontal position; must be within `0.1..=0.9`.
-    pub x: f64,
-    /// Vertical position; must be within `0.1..=0.9`.
-    pub y: f64,
-    /// Whether the character is active.
-    pub enabled: bool,
-}
-
-impl CharacterPrompt {
-    /// A character prompt at the centre.
-    pub fn new(prompt: impl Into<String>) -> Self {
-        Self {
-            prompt: prompt.into(),
-            negative_prompt: String::new(),
-            x: 0.5,
-            y: 0.5,
-            enabled: true,
-        }
-    }
-
-    /// Validate, mirroring the Python `CharacterPrompt.__post_init__`.
-    pub fn validate(&self) -> Result<(), Error> {
-        if self.prompt.trim().is_empty() {
-            return Err(Error::validation("character prompt must not be empty"));
-        }
-        if !(0.1..=0.9).contains(&self.x) || !(0.1..=0.9).contains(&self.y) {
-            return Err(Error::validation(
-                "character coordinates must be between 0.1 and 0.9",
-            ));
-        }
-        Ok(())
-    }
-}
-
+#[cfg(test)]
+mod tests;
 /// A complete NovelAI generation request, independent of any host.
 ///
-/// Prefer [`GenerationRequest::new`] / [`GenerationRequestBuilder`], which
-/// apply the defaults and run [`GenerationRequest::normalize`]. Constructing
-/// the struct literally is supported (the FFI boundary does exactly that) but
-/// requires calling `normalize` yourself before sending.
+/// Prefer [`GenerationRequest::new`] / [`GenerationRequestBuilder`], which apply
+/// the defaults and run [`GenerationRequest::normalize`]. Constructing the
+/// struct literally requires calling `normalize` yourself before sending.
 #[derive(Debug, Clone)]
 pub struct GenerationRequest {
     /// The positive prompt (required, non-blank).
@@ -352,11 +245,7 @@ impl GenerationRequest {
             ));
         }
         if image_conditioned {
-            self.strength.get_or_insert(0.3);
-            self.noise.get_or_insert(0.0);
-            if self.extra_noise_seed.is_none() {
-                self.extra_noise_seed = Some(rng.random_range(0..EXTRA_NOISE_SEED_BOUND));
-            }
+            self.fill_image_conditioned_defaults(rng);
         }
         if matches!(
             self.model,
@@ -366,12 +255,7 @@ impl GenerationRequest {
             self.inpaint_img2img_strength = Some(1);
         }
         if self.action == Action::INPAINT && !self.estimate_only {
-            if self.mask.is_none() {
-                return Err(Error::validation("inpainting requires a mask"));
-            }
-            if !self.model.is_inpaint() {
-                return Err(Error::validation("inpainting requires an inpainting model"));
-            }
+            self.check_inpaint_requirements()?;
         }
         if self.strength.is_some_and(|s| !(0.01..=0.99).contains(&s)) {
             return Err(Error::validation("strength must be between 0.01 and 0.99"));
@@ -454,20 +338,21 @@ impl GenerationRequest {
     pub fn max_samples(&self) -> u32 {
         let resolution = u64::from(self.width) * u64::from(self.height);
         if resolution <= 512 * 704 {
-            8
-        } else if resolution <= 640 * 640 {
-            6
-        } else if resolution <= 1_024 * 3_072 {
-            if resolution <= 1_310_720 {
-                4
-            } else if resolution <= 1_572_864 {
-                2
-            } else {
-                1
-            }
-        } else {
-            0
+            return 8;
         }
+        if resolution <= 640 * 640 {
+            return 6;
+        }
+        if resolution > 1_024 * 3_072 {
+            return 0;
+        }
+        if resolution <= 1_310_720 {
+            return 4;
+        }
+        if resolution <= 1_572_864 {
+            return 2;
+        }
+        1
     }
 
     /// Estimate provider Anlas cost using the public web-client formula.
@@ -600,143 +485,5 @@ impl GenerationRequestBuilder {
     /// `extra_noise_seed`).
     pub fn build_with_rng<R: Rng + ?Sized>(self, rng: &mut R) -> Result<GenerationRequest, Error> {
         self.request.normalize_with_rng(rng)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn defaults_and_rounding() {
-        let req = GenerationRequest::new("a cat").build().unwrap();
-        assert_eq!((req.width, req.height), (832, 1216));
-        let req = GenerationRequest::new("a cat")
-            .width(100)
-            .height(100)
-            .build()
-            .unwrap();
-        assert_eq!((req.width, req.height), (128, 128));
-    }
-
-    #[test]
-    fn validation_messages_match_python() {
-        let cases: &[(&str, fn(&mut GenerationRequestBuilder))] =
-            &[("prompt must not be empty", |b| {
-                *b = std::mem::replace(b, GenerationRequest::new("x"))
-                    .negative_prompt(String::new());
-            })];
-        let _ = cases;
-
-        let err = GenerationRequest::new("  ").build().unwrap_err();
-        assert_eq!(err.to_string(), "prompt must not be empty");
-
-        let err = GenerationRequest::new("x").steps(0).build().unwrap_err();
-        assert_eq!(err.to_string(), "steps must be between 1 and 50");
-
-        let err = GenerationRequest::new("x").width(32).build().unwrap_err();
-        assert_eq!(
-            err.to_string(),
-            "image dimensions must be between 64 and 49152"
-        );
-
-        let err = GenerationRequest::new("x")
-            .n_samples(9)
-            .build()
-            .unwrap_err();
-        assert_eq!(err.to_string(), "n_samples must be between 1 and 8");
-
-        let err = GenerationRequest::new("x")
-            .action(Action::IMG2IMG)
-            .build()
-            .unwrap_err();
-        assert_eq!(
-            err.to_string(),
-            "image-conditioned actions require an image"
-        );
-    }
-
-    #[test]
-    fn image_conditioned_defaults() {
-        let req = GenerationRequest::new("x")
-            .action(Action::IMG2IMG)
-            .image(Some("aGk=".into()))
-            .build()
-            .unwrap();
-        assert_eq!(req.strength, Some(0.3));
-        assert_eq!(req.noise, Some(0.0));
-        let seed = req.extra_noise_seed.expect("filled");
-        assert!(seed < EXTRA_NOISE_SEED_BOUND);
-    }
-
-    #[test]
-    fn v5_inpaint_strength() {
-        let req = GenerationRequest::new("x")
-            .model(Model::V5)
-            .build()
-            .unwrap();
-        assert_eq!(req.inpaint_img2img_strength, Some(1));
-        let req = GenerationRequest::new("x")
-            .model(Model::V4_5)
-            .build()
-            .unwrap();
-        assert_eq!(req.inpaint_img2img_strength, Some(1));
-        let req = GenerationRequest::new("x")
-            .model(Model::V3)
-            .build()
-            .unwrap();
-        assert_eq!(req.inpaint_img2img_strength, None);
-    }
-
-    #[test]
-    fn efficient_prompt_merging() {
-        let req = GenerationRequest::new("1girl, 1girl").build().unwrap();
-        assert_eq!(
-            req.effective_prompt(),
-            "1girl, very aesthetic, masterpiece, no text"
-        );
-        let req = GenerationRequest::new("1girl")
-            .negative_prompt("nsfw, blurry, NSFW")
-            .build()
-            .unwrap();
-        // The UC preset is *prepended*; user tags are appended, deduped
-        // case-insensitively. "nsfw" is already in the preset, so only
-        // "blurry" survives from the user prompt.
-        let negative = req.effective_negative_prompt();
-        assert!(negative.ends_with(", blurry"), "got: {negative}");
-        assert_eq!(
-            negative.matches("nsfw").count(),
-            1,
-            "dedupe failed: {negative}"
-        );
-    }
-
-    #[test]
-    fn anlas_estimate_formula() {
-        let req = GenerationRequest::new("x").build().unwrap();
-        assert_eq!(req.estimate_anlas_cost(false), 20);
-        let req = GenerationRequest::new("x").n_samples(4).build().unwrap();
-        assert_eq!(req.estimate_anlas_cost(false), 80);
-        let req = GenerationRequest::new("x").build().unwrap();
-        assert_eq!(req.estimate_anlas_cost(true), 0);
-    }
-
-    #[test]
-    fn max_samples_bands() {
-        let bands = [
-            (512, 704, 8),
-            (640, 640, 6),
-            (1024, 1280, 4),
-            (1024, 1536, 2),
-            (1472, 1472, 1),
-        ];
-        for (w, h, expected) in bands {
-            let req = GenerationRequest::new("x")
-                .width(w)
-                .height(h)
-                .build()
-                .unwrap();
-            assert_eq!(req.max_samples(), expected, "{w}x{h}");
-        }
     }
 }

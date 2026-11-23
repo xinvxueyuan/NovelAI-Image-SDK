@@ -12,14 +12,14 @@ BoringSSL is built from source by `btls-sys`:
 ## Checks
 
 ```bash
-cargo fmt --all -- --check
-cargo clippy --workspace --all-targets --all-features -- -D warnings
-cargo test --workspace --all-features
-cargo deny check
-uvx --from "reuse[charset-normalizer]" reuse lint
+cargo xtask check   # fmt, clippy, nextest, deny, REUSE, typos, tombi, file
+                    # length, prek — the same gate CI runs
 ```
 
-CI runs the same set on Linux, Windows and macOS.
+CI runs it on Linux, Windows and macOS, plus `cargo shear` and the golden
+fixture job. The infrastructure itself (hooks, clippy thresholds, nextest
+profiles, file-length policy) is documented in
+[`docs/infrastructure.md`](docs/infrastructure.md).
 
 ## Golden fixtures
 

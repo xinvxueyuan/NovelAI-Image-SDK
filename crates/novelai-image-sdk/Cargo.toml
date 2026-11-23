@@ -1,51 +1,49 @@
 [package]
 name = "novelai-image-sdk"
-description = "Rust SDK for the NovelAI image-generation API (generation, enhance, vibe, tags, account)"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
-license.workspace = true
+description = "Rust SDK for the NovelAI image-generation API (generation, enhance, vibe, tags, account)"
 repository.workspace = true
-authors.workspace = true
-keywords = ["novelai", "image-generation", "sd", "diffusion", "api-client"]
+license.workspace = true
+keywords = ["api-client", "diffusion", "image-generation", "novelai", "sd"]
 categories = ["api-bindings", "multimedia::images"]
-
-[dependencies]
-wreq = { workspace = true }
-wreq-util = { workspace = true }
-tokio = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-rmpv = { workspace = true }
-rmp-serde = { workspace = true }
-zip = { workspace = true }
-argon2 = { workspace = true }
-blake2 = { workspace = true }
-base64 = { workspace = true }
-rand = { workspace = true }
-lru = { workspace = true }
-sha2 = { workspace = true }
-thiserror = { workspace = true }
-time = { workspace = true }
-unicode-casefold = { workspace = true }
-futures-core = { workspace = true }
-futures-util = { workspace = true }
-async-stream = { workspace = true }
-
-[dev-dependencies]
-wiremock = { workspace = true }
-pretty_assertions = { workspace = true }
-tokio = { workspace = true, features = ["full"] }
 
 [features]
 default = ["browser-emulation", "compression"]
+# Synchronous facade backed by an owned Tokio runtime (for Go/C++ bindings and
+# simple Rust callers). Async code must not call into it.
+blocking = []
 # Build the wreq client with a Chrome browser profile (TLS + HTTP/2 + headers).
 # Disabling this only exists for offline tests that never hit Cloudflare.
 browser-emulation = []
 # Transparent gzip/brotli/zstd response decoding.
 compression = []
-# Synchronous facade backed by an owned Tokio runtime (for Go/C++ bindings and
-# simple Rust callers). Async code must not call into it.
-blocking = []
 # Host-convenience output persistence (`save_image` / `resolve_output_path`).
 output = []
+
+[dependencies]
+argon2 = { workspace = true }
+async-stream = { workspace = true }
+base64 = { workspace = true }
+blake2 = { workspace = true }
+bytes = { workspace = true }
+futures-util = { workspace = true }
+lru = { workspace = true }
+rand = { workspace = true }
+rmp-serde = { workspace = true }
+rmpv = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+time = { workspace = true }
+tokio = { workspace = true }
+unicode-casefold = { workspace = true }
+wreq = { workspace = true }
+wreq-util = { workspace = true }
+zip = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
+wiremock = { workspace = true }

@@ -56,6 +56,7 @@ pub mod models;
 pub mod output;
 pub mod payload;
 pub mod response;
+pub mod spec;
 
 /// SDK version, mirrored from `Cargo.toml`.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

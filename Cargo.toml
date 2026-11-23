@@ -1,62 +1,59 @@
 [workspace]
 resolver = "3"
 members = [
-    "crates/novelai-image-sdk",
-    "crates/novelai-image-ffi-uniffi",
-    "crates/novelai-image-ffi-napi",
-    "tools/xtask",
-    "tools/uniffi-bindgen",
+  "crates/novelai-image-ffi-napi",
+  "crates/novelai-image-ffi-uniffi",
+  "crates/novelai-image-sdk",
+  "tools/uniffi-bindgen",
+  "tools/xtask",
 ]
 exclude = ["bindings"]
 
 [workspace.package]
 version = "0.1.0-dev.1"
 edition = "2024"
-rust-version = "1.98"
-license = "MIT"
+rust-version = "1.100.0"
 repository = "https://github.com/xinvxueyuan/NovelAI-Image-SDK"
-authors = ["NovelAI Image SDK contributors"]
+license = "MIT"
 
 [workspace.dependencies]
+argon2 = "0.6"
+async-stream = "0.3"
+base64 = "0.22"
+blake2 = "0.10"
+bytes = "1"
+futures-util = "0.3"
+lru = "0.19"
+napi = { version = "3", default-features = false, features = ["napi9", "tokio_rt"] }
+napi-build = "2"
+napi-derive = "3"
+rand = "0.9"
+rmp-serde = "1"
+rmpv = { version = "1", features = ["with-serde"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+sha2 = "0.10"
+thiserror = "2"
+time = { version = "0.3", features = ["formatting", "macros"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time"] }
+unicode-casefold = "0.2"
+uniffi = "0.32.2"
+wiremock = "0.6"
 # HTTP engine with Chrome TLS/JA3/JA4 + HTTP/2 fingerprint emulation. This is
 # load-bearing: image.novelai.net sits behind Cloudflare's bot WAF and resets
 # connections whose TLS ClientHello does not look like Chrome's.
 wreq = { version = "0.16.4", default-features = false, features = [
-    # default features, re-declared because `default-features = false` drops them
-    "webpki-roots",
-    "tokio-rt",
-    # HTTP/2 + BoringSSL emulation are unconditional in 0.16.x
-    "json",
-    "stream",
-    "gzip",
-    "brotli",
-    "zstd",
+  "brotli",
+  "gzip",
+  # HTTP/2 + BoringSSL emulation are unconditional in 0.16.x
+  "json",
+  "stream",
+  "tokio-rt",  # default features, re-declared because `default-features = false` drops them
+  "webpki-roots",
+  "zstd",
 ] }
 wreq-util = "0.2.1"
-tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = { version = "1", features = ["preserve_order"] }
-rmpv = { version = "1", features = ["with-serde"] }
-rmp-serde = "1"
 zip = { version = "9", default-features = false, features = ["deflate"] }
-argon2 = "0.6"
-blake2 = "0.10"
-base64 = "0.22"
-rand = "0.9"
-lru = "0.19"
-sha2 = "0.10"
-thiserror = "2"
-time = { version = "0.3", features = ["formatting", "macros"] }
-unicode-casefold = "0.2"
-futures-core = "0.3"
-futures-util = "0.3"
-async-stream = "0.3"
-uniffi = "0.32.2"
-napi = { version = "3", default-features = false, features = ["napi9", "tokio_rt"] }
-napi-derive = "3"
-napi-build = "2"
-wiremock = "0.6"
-pretty_assertions = "1"
 
 [profile.release]
 lto = "thin"

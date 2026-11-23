@@ -67,17 +67,8 @@ impl BlockingNovAiClient {
         request: &GenerationRequest,
         max_events: Option<u32>,
     ) -> Result<Vec<GenerationEvent>, Error> {
-        self.block_on(async {
-            let mut stream = self.client.stream_generation(request).await?;
-            let mut events = Vec::new();
-            while let Some(event) = futures_util::StreamExt::next(&mut stream).await {
-                events.push(event?);
-                if max_events.is_some_and(|max| events.len() >= max as usize) {
-                    break;
-                }
-            }
-            Ok(events)
-        })?
+        let stream = self.block_on(self.client.stream_generation(request))??;
+        self.block_on(drain_events(stream, max_events))?
     }
 
     /// Pull-based streaming handle; `next()` drives one event at a time.
@@ -165,6 +156,21 @@ impl BlockingNovAiClient {
     pub fn timeout(&self) -> Duration {
         self.client.config().timeout
     }
+}
+
+/// Collect at most `max_events` events from a stream.
+async fn drain_events(
+    mut stream: crate::client::GenerationStream,
+    max_events: Option<u32>,
+) -> Result<Vec<GenerationEvent>, Error> {
+    let mut events = Vec::new();
+    while let Some(event) = futures_util::StreamExt::next(&mut stream).await {
+        events.push(event?);
+        if max_events.is_some_and(|max| events.len() >= max as usize) {
+            break;
+        }
+    }
+    Ok(events)
 }
 
 /// A pull-based stream that blocks for one event at a time.

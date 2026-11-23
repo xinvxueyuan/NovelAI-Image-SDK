@@ -44,6 +44,11 @@ enum Command {
 
     /// Print the exact command that regenerates the golden fixtures.
     Fixtures,
+
+    /// Run the full local gate (fmt, clippy, nextest, deny, REUSE, typos,
+    /// TOML lint, file length). CI runs the same set; this is for a pre-push
+    /// sanity check.
+    Check,
 }
 
 #[tokio::main]
@@ -52,6 +57,7 @@ async fn main() -> anyhow::Result<()> {
         Command::LiveSpike { path, token } => live_spike(path, token).await?,
         Command::Bindings { language, release } => bindings(language, release)?,
         Command::Fixtures => fixtures()?,
+        Command::Check => check()?,
     }
     Ok(())
 }
@@ -156,6 +162,60 @@ fn bindings(language: Option<String>, release: bool) -> anyhow::Result<()> {
             .join("novelai_image_ffi_napi.dll")
             .display()
     );
+    Ok(())
+}
+
+fn check() -> anyhow::Result<()> {
+    let root = repo_root()?;
+    let steps: &[(&str, &[&str])] = &[
+        ("cargo fmt", &["fmt", "--all", "--", "--check"]),
+        (
+            "clippy",
+            &[
+                "clippy",
+                "--workspace",
+                "--all-targets",
+                "--all-features",
+                "--",
+                "-D",
+                "warnings",
+            ],
+        ),
+        (
+            "nextest",
+            &["nextest", "run", "--workspace", "--all-features"],
+        ),
+        ("deny", &["deny", "check"]),
+    ];
+    for (name, args) in steps {
+        println!("== {name}");
+        let mut command = Proc::new("cargo");
+        command.current_dir(&root).args(*args);
+        run(&mut command)?;
+    }
+
+    // Non-cargo gates.
+    for (name, program, args) in [
+        ("reuse", "reuse", vec!["lint"]),
+        ("typos", "typos", vec![]),
+        ("tombi", "tombi", vec!["lint"]),
+        ("file-length", "node", vec!["scripts/check-file-length.mjs"]),
+        (
+            "prek",
+            "prek",
+            vec!["run", "--all-files", "--stage", "pre-commit"],
+        ),
+    ] {
+        println!("== {name}");
+        let mut command = Proc::new(program);
+        command.current_dir(&root).args(args);
+        if let Err(error) = run(&mut command) {
+            eprintln!("{name} is not installed or failed: {error}");
+            eprintln!("install it and re-run `cargo xtask check`");
+            return Err(error);
+        }
+    }
+    println!("all gates passed");
     Ok(())
 }
 

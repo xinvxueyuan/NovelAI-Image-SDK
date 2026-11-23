@@ -1,3 +1,6 @@
 [toolchain]
+# Pinned exactly, and kept equal to `rust-version` in Cargo.toml and `msrv` in
+# clippy.toml. Change all three together or they will drift.
 channel = "1.100.0"
-components = ["rustfmt", "clippy"]
+profile = "minimal"
+components = ["rustfmt", "clippy", "rust-src"]

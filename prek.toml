@@ -1,0 +1,75 @@
+# Fast local hooks. They cover what is cheap to fix while a commit is still
+# local: whitespace and encoding, files that must parse, formatting, and commit
+# metadata. Anything that builds the workspace or scans every file (clippy,
+# tests, cargo deny, cargo shear, typos, REUSE) belongs to CI; run `cargo xtask
+# check` for most of that gate locally on demand.
+
+# Install all three shims; without this prek only installs pre-commit.
+default_install_hook_types = ["pre-commit", "pre-push", "commit-msg"]
+
+# A hook without `stages` runs in every installed stage. Keep the file checks
+# at pre-commit and let the commit-metadata hooks opt into the other two.
+default_stages = ["pre-commit"]
+
+[[repos]]
+repo = "builtin"
+hooks = [
+  # Encoding and whitespace. Runs at pre-commit so a fix is one commit, not a
+  # separate cleanup commit after review.
+  { id = "trailing-whitespace", stages = ["pre-commit"] },
+  { id = "end-of-file-fixer", stages = ["pre-commit"] },
+  { id = "mixed-line-ending", args = ["--fix=lf"] },
+  { id = "fix-byte-order-marker" },
+
+  # Files that break on another platform or in another checkout.
+  { id = "check-case-conflict" },
+  { id = "check-illegal-windows-names" },
+  { id = "check-symlinks" },
+  { id = "destroyed-symlinks", stages = ["pre-commit"] },
+  { id = "forbid-new-submodules" },
+  { id = "check-added-large-files", args = ["--maxkb=4096"], stages = ["pre-commit"] },
+
+  # Merge artifacts and secrets.
+  { id = "check-merge-conflict" },
+  { id = "detect-private-key" },
+
+  # Structured files must parse. JSON has no comments, and a misplaced one has
+  # broken a repository before.
+  { id = "check-json" },
+  { id = "check-toml" },
+  { id = "check-yaml" },
+  { id = "check-xml" },
+
+  # Commit message policy: AGENTS.md requires a DCO sign-off, and the
+  # Conventional Commit subject shape is enforced by the repository's own
+  # commit-msg hook (.githooks/commit-msg, installed via core.hooksPath).
+  # Only the DCO sign-off is checkable here as a trailer.
+  {
+    id = "check-commit-trailers",
+    args = ['''--require=Signed-off-by=^.+ <.+@.+>$'''],
+    stages = ["commit-msg", "pre-push"],
+  },
+]
+
+[[repos]]
+repo = "local"
+hooks = [
+  # Formatters only. CI runs the same checks, but catching a formatting
+  # failure here costs a second instead of a round trip.
+  {
+    id = "format-rust",
+    name = "cargo fmt",
+    language = "system",
+    entry = "cargo fmt --all -- --check",
+    types = ["rust"],
+    pass_filenames = false,
+  },
+  {
+    id = "format-toml",
+    name = "tombi format",
+    language = "system",
+    entry = "tombi format --check",
+    types = ["toml"],
+    pass_filenames = false,
+  },
+]

@@ -1,0 +1,16 @@
+# Normalise line endings so Windows checkouts do not produce whitespace-only
+# diffs. Keep binary assets and the lockfile out of any text conversion.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.gif binary
+*.webp binary
+
+# Cargo embeds its own hash in Cargo.lock; never let an EOL rewrite churn it.
+Cargo.lock text eol=lf
+
+# Golden fixtures are compared byte-for-byte by tests.
+fixtures/golden/*.json text eol=lf

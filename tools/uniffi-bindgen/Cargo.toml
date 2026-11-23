@@ -1,9 +1,9 @@
 [package]
 name = "uniffi-bindgen"
-description = "Pinned uniffi-bindgen binary (version must match the uniffi dependency)"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+description = "Pinned uniffi-bindgen binary (version must match the uniffi dependency)"
 license.workspace = true
 publish = false
 

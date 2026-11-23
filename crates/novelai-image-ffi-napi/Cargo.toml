@@ -1,21 +1,22 @@
 [package]
 name = "novelai-image-ffi-napi"
-description = "napi-rs boundary for novelai-image-sdk (Node.js)"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
-license.workspace = true
+description = "napi-rs boundary for novelai-image-sdk (Node.js)"
 repository.workspace = true
+license.workspace = true
 publish = false
 
 [lib]
 crate-type = ["cdylib"]
 
 [dependencies]
-novelai-image-sdk = { path = "../novelai-image-sdk", version = "0.1.0-dev.1" }
+futures-util = { workspace = true }
 napi = { workspace = true }
 napi-derive = { workspace = true }
-futures-util = { workspace = true }
+novelai-image-sdk = { path = "../novelai-image-sdk", version = "0.1.0-dev.1" }
+serde = { workspace = true }
 serde_json = { workspace = true }
 
 [build-dependencies]

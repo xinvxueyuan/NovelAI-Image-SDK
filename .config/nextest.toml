@@ -1,0 +1,15 @@
+# Keeping these settings in one file means local runs and CI behave identically,
+# instead of each invocation repeating its own flags.
+[profile.default]
+fail-fast = false
+retries = 0
+
+# Show test output only for failures; a passing run stays quiet.
+failure-output = "immediate-final"
+success-output = "never"
+
+# nextest requires every non-default profile to name what it derives from.
+[profile.ci]
+inherits = "default"
+retries = 2
+failure-output = "immediate-final"

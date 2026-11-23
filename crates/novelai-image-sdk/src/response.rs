@@ -105,6 +105,18 @@ pub fn is_zip(content: &[u8]) -> bool {
     content.starts_with(b"PK")
 }
 
+/// Decode one MessagePack frame into an event, if it carries one.
+fn decode_frame(payload: &[u8]) -> Result<Option<GenerationEvent>, Error> {
+    let mut deserializer = rmp_serde::Deserializer::new(Cursor::new(payload));
+    let value = rmpv::Value::deserialize(&mut deserializer)
+        .map_err(|_| Error::response("invalid MessagePack frame"))?;
+    // Reject trailing bytes after a complete value (`ExtraData` parity).
+    if deserializer.position() as usize != payload.len() {
+        return Err(Error::response("invalid MessagePack frame"));
+    }
+    event(value)
+}
+
 fn event(value: rmpv::Value) -> Result<Option<GenerationEvent>, Error> {
     let rmpv::Value::Map(entries) = value else {
         return Ok(None);
@@ -187,40 +199,50 @@ impl MessagePackStreamParser {
     pub fn feed(&mut self, chunk: &[u8]) -> Result<Vec<GenerationEvent>, Error> {
         self.buffer.extend_from_slice(chunk);
         let mut events = Vec::new();
-        loop {
-            if self.expected.is_none() {
-                if self.buffer.len() < 4 {
-                    break;
-                }
-                let frame_length =
-                    u32::from_be_bytes(self.buffer[..4].try_into().expect("4 bytes"));
-                self.buffer.drain(..4);
-                if frame_length > MAX_FRAME_BYTES {
-                    return Err(Error::response("MessagePack frame is too large"));
-                }
-                self.expected = Some(frame_length);
-            }
-            let Some(expected) = self.expected else {
-                break;
-            };
-            if self.buffer.len() < expected as usize {
-                break;
-            }
-            let payload: Vec<u8> = self.buffer.drain(..expected as usize).collect();
-            self.expected = None;
-
-            let mut deserializer = rmp_serde::Deserializer::new(Cursor::new(&payload));
-            let value = rmpv::Value::deserialize(&mut deserializer)
-                .map_err(|_| Error::response("invalid MessagePack frame"))?;
-            // Reject trailing bytes after a complete value (`ExtraData` parity).
-            if deserializer.position() as usize != payload.len() {
-                return Err(Error::response("invalid MessagePack frame"));
-            }
-            if let Some(parsed) = event(value)? {
-                events.push(parsed);
-            }
+        while let Some(payload) = self.next_frame()? {
+            events.extend(decode_frame(&payload)?);
         }
         Ok(events)
+    }
+
+    /// Take the next complete frame from the buffer, if one is available.
+    ///
+    /// Reads the big-endian length prefix on demand and enforces
+    /// [`MAX_FRAME_BYTES`].
+    fn next_frame(&mut self) -> Result<Option<Vec<u8>>, Error> {
+        let Some(expected) = self.frame_length()? else {
+            return Ok(None);
+        };
+        if self.buffer.len() < expected {
+            return Ok(None);
+        }
+        self.expected = None;
+        Ok(Some(self.buffer.drain(..expected).collect()))
+    }
+
+    /// The byte length of the frame currently being assembled.
+    fn frame_length(&mut self) -> Result<Option<usize>, Error> {
+        if let Some(expected) = self.expected {
+            return Ok(Some(expected as usize));
+        }
+        let Some(declared) = self.read_declared_length()? else {
+            return Ok(None);
+        };
+        self.expected = Some(declared);
+        Ok(Some(declared as usize))
+    }
+
+    /// Consume the 4-byte length prefix, validating the frame cap.
+    fn read_declared_length(&mut self) -> Result<Option<u32>, Error> {
+        if self.buffer.len() < 4 {
+            return Ok(None);
+        }
+        let frame_length = u32::from_be_bytes(self.buffer[..4].try_into().expect("4 bytes"));
+        self.buffer.drain(..4);
+        if frame_length > MAX_FRAME_BYTES {
+            return Err(Error::response("MessagePack frame is too large"));
+        }
+        Ok(Some(frame_length))
     }
 
     /// Verify the stream ended on a frame boundary.

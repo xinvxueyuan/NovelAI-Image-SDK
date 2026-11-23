@@ -1,0 +1,97 @@
+name: Repository checks
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  guardrails:
+    name: Guardrails
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out workspace
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check spelling
+        uses: crate-ci/typos@276087d9a4f06398b3e04825487805e2d7375888 # v1.52.2
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+
+      - name: Check REUSE compliance
+        run: |
+          python -m pip install --quiet "reuse[charset-normalizer]==6.3.0"
+          reuse lint
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      - name: Check code file length
+        run: node scripts/check-file-length.mjs
+
+  dependencies:
+    name: Rust dependency policy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out workspace
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install --profile minimal
+
+      - name: Install dependency checks
+        uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f # v2.90.6
+        with:
+          tool: cargo-shear@1.14.1, cargo-deny@0.22.0
+
+      - name: Check unused dependencies
+        run: cargo shear
+
+      - name: Check dependency policy
+        run: cargo deny check
+
+  hooks:
+    name: Hooks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out workspace
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Rust formatter
+        run: rustup toolchain install --profile minimal --component rustfmt
+
+      - name: Install Tombi
+        uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f # v2.90.6
+        with:
+          tool: tombi@1.11.3
+
+      - name: Install prek
+        shell: bash
+        run: |
+          curl --proto '=https' --tlsv1.2 -LsSf \
+            https://github.com/j178/prek/releases/download/v0.5.11/prek-installer.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Validate hook configuration
+        run: prek validate-config prek.toml
+
+      - name: Run file and formatting checks
+        run: prek run --all-files --stage pre-commit
+
+      - name: Lint TOML
+        run: tombi lint
