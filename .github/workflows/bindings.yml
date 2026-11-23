@@ -1,0 +1,97 @@
+name: Bindings
+
+# Builds the FFI boundaries and verifies every generated binding compiles and
+# passes its language-level smoke test. Publishing jobs are added per phase
+# (see the milestones in the plan); this workflow is the compile gate.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  uniffi:
+    name: UniFFI (${{ matrix.lang }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - lang: python
+            os: ubuntu-latest
+          - lang: kotlin
+            os: ubuntu-latest
+          - lang: swift
+            os: macos-14
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
+      - uses: Swatinem/rust-cache@2201cc584a476d1b508be977bbe4b7d1c7a52e9c
+      - name: Install build prerequisites
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            sudo apt-get update && sudo apt-get install -y cmake nasm libclang-dev
+          else
+            brew install cmake nasm
+          fi
+      - name: Generate bindings
+        run: cargo run -p xtask -- bindings --language ${{ matrix.lang }}
+      - name: Compile and smoke-test (Python)
+        if: matrix.lang == 'python'
+        run: |
+          python -m venv .venv-bindings
+          . .venv-bindings/bin/activate
+          pip install pytest
+          cp target/debug/libnovelai_image_sdk_ffi.so bindings/python/generated/ 2>/dev/null || true
+          python -c "import sys; sys.path.insert(0, 'bindings/python/generated'); import novelai_image_sdk_ffi as sdk; assert len(sdk.list_models()) == 15; assert sdk.derive_access_key('user@example.com', 'hunter2')"
+      - name: Smoke-test (Kotlin)
+        if: matrix.lang == 'kotlin'
+        run: |
+          # Compilation-only gate until the Gradle wrapper lands in phase P3.
+          test -f bindings/kotlin/generated/io/github/xinvxueyuan/novelai/image/sdk/novelai_image_sdk_ffi.kt
+          grep -q "suspend fun \`generate\`" bindings/kotlin/generated/io/github/xinvxueyuan/novelai/image/sdk/novelai_image_sdk_ffi.kt
+      - name: Smoke-test (Swift)
+        if: matrix.lang == 'swift'
+        run: |
+          test -f bindings/swift/generated/NovelAIImageSDK.swift
+          test -f bindings/swift/generated/NovelAIImageSDKFFI.h
+          grep -q "NovelAiClient" bindings/swift/generated/NovelAIImageSDK.swift
+
+  napi:
+    name: napi (Node.js)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
+      - uses: Swatinem/rust-cache@2201cc584a476d1b508be977bbe4b7d1c7a52e9c
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: 22
+      - name: Install build prerequisites
+        run: sudo apt-get update && sudo apt-get install -y cmake nasm libclang-dev
+      - name: Build addon
+        run: cargo build -p novelai-image-ffi-napi --release
+      - name: Smoke-test
+        run: |
+          mkdir -p bindings/node/smoke
+          cp target/release/libnovelai_image_ffi_napi.so bindings/node/smoke/bindings.node
+          cat > bindings/node/smoke/index.js <<'EOF'
+          const sdk = require('./bindings.node');
+          if (sdk.version() === '') throw new Error('empty version');
+          if (sdk.listModels().length !== 15) throw new Error('model catalog');
+          const key = sdk.deriveAccessKey('user@example.com', 'hunter2');
+          if (key.length !== 64) throw new Error('access key length');
+          const client = new sdk.NovelAiClient({ token: 't' }, null);
+          const resolved = client.resolveRequest({ prompt: '1girl', width: 100 });
+          if (resolved.width !== 128) throw new Error('width rounding');
+          console.log('napi smoke OK');
+          EOF
+          (cd bindings/node/smoke && node index.js)
