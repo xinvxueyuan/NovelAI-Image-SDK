@@ -1378,6 +1378,7 @@ dependencies = [
  "napi-sys",
  "nohash-hasher",
  "rustc-hash",
+ "tokio",
 ]
 
 [[package]]
@@ -1454,10 +1455,12 @@ dependencies = [
 name = "novelai-image-ffi-napi"
 version = "0.1.0-dev.1"
 dependencies = [
+ "futures-util",
  "napi",
  "napi-build",
  "napi-derive",
  "novelai-image-sdk",
+ "serde_json",
 ]
 
 [[package]]

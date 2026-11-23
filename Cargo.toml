@@ -52,7 +52,7 @@ futures-core = "0.3"
 futures-util = "0.3"
 async-stream = "0.3"
 uniffi = "0.32.2"
-napi = { version = "3", default-features = false, features = ["napi9"] }
+napi = { version = "3", default-features = false, features = ["napi9", "tokio_rt"] }
 napi-derive = "3"
 napi-build = "2"
 wiremock = "0.6"
