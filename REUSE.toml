@@ -1,0 +1,76 @@
+# REUSE.toml — FSFE REUSE 3.0 compliant license declarations
+#
+# Current-phase assignment:
+#   - software code (Rust, bindings, scripts) -> MIT
+#   - documentation (.md)                     -> MIT
+#   - configuration & CI                      -> CC0-1.0
+#
+# The UniFFI runtime crate (MPL-2.0) is a *dependency* of the FFI crate only;
+# see THIRD_PARTY_NOTICES.md. No MPL-licensed source is vendored in this repo.
+#
+# Run `uv run reuse lint` (or `reuse lint`) to verify compliance.
+
+version = 3
+
+[[annotations]]
+path = [
+  "**/*.rs",
+  "**/*.py",
+  "**/*.ts",
+  "**/*.js",
+  "**/*.kt",
+  "**/*.swift",
+  "**/*.cs",
+  "**/*.go",
+  "**/*.cpp",
+  "**/*.hpp",
+  "**/*.h",
+  "scripts/**",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 NovelAI Image SDK contributors"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = ["**/*.md"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 NovelAI Image SDK contributors"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = [
+  "LICENSE",
+  "NOTICE",
+  "LICENSES/MIT.txt",
+  "THIRD_PARTY_NOTICES.md",
+  ".githooks/**",
+  ".gitignore",
+  "**/Cargo.toml",
+  "**/Cargo.lock",
+  "**/package.json",
+  "**/pyproject.toml",
+  "**/*.yml",
+  "**/*.yaml",
+  "**/*.json",
+  "**/*.toml",
+  ".gitignore",
+  ".gitmodules",
+  "rust-toolchain.toml",
+  "rustfmt.toml",
+  "deny.toml",
+  "**/Dockerfile",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 NovelAI Image SDK contributors"
+SPDX-License-Identifier = "CC0-1.0"
+
+# License texts themselves (verbatim upstream texts, not our content).
+#
+# Only licenses that apply to files *in this repository* live here. Dependency
+# licenses (UniFFI MPL-2.0, BoringSSL Apache-2.0) are documented in
+# THIRD_PARTY_NOTICES.md and shipped by the packages that link them.
+[[annotations]]
+path = ["LICENSES/MIT.txt", "LICENSES/CC0-1.0.txt"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 NovelAI Image SDK contributors"
+SPDX-License-Identifier = "CC0-1.0"

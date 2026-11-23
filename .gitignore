@@ -1,0 +1,28 @@
+# Rust
+/target/
+**/*.rs.bk
+
+# Generated bindings (produced from the built cdylib in CI)
+bindings/*/generated/
+bindings/*/__pycache__/
+bindings/node/*.node
+bindings/node/npm/
+bindings/swift/*.xcframework/
+bindings/dotnet/bin/
+bindings/dotnet/obj/
+bindings/go/internal/nativelib/*/*.a
+bindings/go/internal/nativelib/*/*.lib
+bindings/cpp/build/
+
+# Python
+__pycache__/
+*.egg-info/
+.venv/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Tooling artifacts
+fixtures/golden/.generated-at
+docs/book/

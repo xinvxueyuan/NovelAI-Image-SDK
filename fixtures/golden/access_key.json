@@ -1,0 +1,17 @@
+[
+  {
+    "username": "user@example.com",
+    "password": "hunter2",
+    "key": "QapiWvOgwXqcgh5_Bjrbq6anUMLb9vC9ci3KnkIO3vaecq3B6aFvte5BEE2E03lU"
+  },
+  {
+    "username": "alice",
+    "password": "correct horse battery staple",
+    "key": "sLHTIE0kw0kv2Vss4sLW6gqRoH26HrcCzfNrM_goD8J6avM3WaDtIX4l46xxx-c5"
+  },
+  {
+    "username": "a",
+    "password": "p",
+    "key": "xGNZ4TFBUoWsiteHNMqBXPC7kCGQHC_FkUa27n8Nakrok-2X9s0N-zIw-UqFELhm"
+  }
+]

@@ -1,0 +1,55 @@
+# cargo-deny configuration.
+#
+# The core crate is MIT; the only copyleft dependency is the UniFFI runtime
+# (MPL-2.0), which is confined to the non-published FFI boundary crate. See
+# THIRD_PARTY_NOTICES.md.
+
+[graph]
+targets = [
+  "x86_64-unknown-linux-gnu",
+  "aarch64-unknown-linux-gnu",
+  "x86_64-pc-windows-msvc",
+  "aarch64-apple-darwin",
+  "x86_64-apple-darwin",
+]
+all-features = true
+
+[advisories]
+db-urls = ["https://github.com/rustsec/advisory-db"]
+ignore = []
+
+[licenses]
+allow = [
+  "MIT",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "Unicode-3.0",
+  "Zlib",
+  "MPL-2.0", # UniFFI runtime; FFI boundary only (see THIRD_PARTY_NOTICES.md)
+  "CDLA-Permissive-2.0",
+]
+confidence-threshold = 0.93
+exceptions = []
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+deny = [
+  # The reference implementation specifically requires a BoringSSL-based client
+  # with browser TLS fingerprinting; plain rustls/native-tls will be blocked by
+  # NovelAI's Cloudflare WAF.
+  { name = "reqwest" },
+  { name = "hyper-rustls" },
+  { name = "native-tls" },
+  { name = "openssl" },
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []
+

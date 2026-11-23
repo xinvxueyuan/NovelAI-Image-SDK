@@ -1,0 +1,18 @@
+NovelAI Image SDK
+Copyright (c) 2026 NovelAI Image SDK contributors
+
+This product includes software derived from NovelAI-Image-MCP
+(https://github.com/xinvxueyuan/NovelAI-Image-MCP), Copyright (c) 2026
+NovelAI Image MCP contributors, licensed under the MIT License. The wire
+protocol, request validation rules, Anlas cost formula and error taxonomy are
+ported from that project, and the golden fixtures under `fixtures/golden/` are
+generated from it.
+
+This product links the UniFFI runtime (https://github.com/mozilla/uniffi-rs)
+in its generated bindings, licensed under the Mozilla Public License 2.0.
+
+This product links BoringSSL (https://boringssl.googlesource.com/boringssl/)
+via the `wreq` / `btls` crates, licensed under the Apache License 2.0.
+
+NovelAI and the NovelAI logo are trademarks of their respective owners. This is
+an unofficial, community-maintained client.

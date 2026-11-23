@@ -1,0 +1,11 @@
+[package]
+name = "uniffi-bindgen"
+description = "Pinned uniffi-bindgen binary (version must match the uniffi dependency)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+uniffi = { workspace = true, features = ["cli"] }

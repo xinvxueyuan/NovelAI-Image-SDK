@@ -1,0 +1,142 @@
+[
+  {
+    "status": 400,
+    "body": "{\"statusCode\":400,\"message\":\"bad prompt\"}",
+    "parsed": {
+      "code": 400,
+      "message": "bad prompt"
+    },
+    "raised": {
+      "type": "NovelAIValidationError",
+      "message": "NovelAI HTTP 400: bad prompt [code 400: invalid request (validation failed)]",
+      "code": 400,
+      "explanation": "invalid request (validation failed)"
+    }
+  },
+  {
+    "status": 401,
+    "body": "{\"statusCode\":401,\"message\":\"Unauthorized\"}",
+    "parsed": {
+      "code": 401,
+      "message": "Unauthorized"
+    },
+    "raised": {
+      "type": "NovelAIAuthenticationError",
+      "message": "NovelAI HTTP 401: Unauthorized [code 401: authentication failed (missing, invalid, or expired credentials)]",
+      "code": 401,
+      "explanation": "authentication failed (missing, invalid, or expired credentials)"
+    }
+  },
+  {
+    "status": 402,
+    "body": "{\"statusCode\":402,\"message\":\"Subscribe\"}",
+    "parsed": {
+      "code": 402,
+      "message": "Subscribe"
+    },
+    "raised": {
+      "type": "NovelAIInsufficientCreditsError",
+      "message": "NovelAI HTTP 402: Subscribe [code 402: active subscription or Anlas required]",
+      "code": 402,
+      "explanation": "active subscription or Anlas required"
+    }
+  },
+  {
+    "status": 429,
+    "body": "{\"statusCode\":429,\"message\":\"Too many requests\"}",
+    "parsed": {
+      "code": 429,
+      "message": "Too many requests"
+    },
+    "raised": {
+      "type": "NovelAIConcurrencyError",
+      "message": "NovelAI HTTP 429: Too many requests [code 429: rate limit or concurrency limit reached]",
+      "code": 429,
+      "explanation": "rate limit or concurrency limit reached"
+    }
+  },
+  {
+    "status": 409,
+    "body": "{\"statusCode\":409,\"message\":\"Conflict\"}",
+    "parsed": {
+      "code": 409,
+      "message": "Conflict"
+    },
+    "raised": {
+      "type": "NovelAIProviderError",
+      "message": "NovelAI HTTP 409: Conflict [code 409: request conflicted with server state]",
+      "code": 409,
+      "explanation": "request conflicted with server state"
+    }
+  },
+  {
+    "status": 500,
+    "body": "{\"message\":\"boom\"}",
+    "parsed": {
+      "code": null,
+      "message": "boom"
+    },
+    "raised": {
+      "type": "NovelAIProviderError",
+      "message": "NovelAI HTTP 500: boom [code 500]",
+      "code": 500,
+      "explanation": null
+    }
+  },
+  {
+    "status": 500,
+    "body": "raw text",
+    "parsed": {
+      "code": null,
+      "message": "raw text"
+    },
+    "raised": {
+      "type": "NovelAIProviderError",
+      "message": "NovelAI HTTP 500: raw text [code 500]",
+      "code": 500,
+      "explanation": null
+    }
+  },
+  {
+    "status": 400,
+    "body": "{\"code\":\"E_CUSTOM\",\"message\":\"bad\"}",
+    "parsed": {
+      "code": "E_CUSTOM",
+      "message": "bad"
+    },
+    "raised": {
+      "type": "NovelAIValidationError",
+      "message": "NovelAI HTTP 400: bad [code E_CUSTOM: invalid request (validation failed)]",
+      "code": "E_CUSTOM",
+      "explanation": "invalid request (validation failed)"
+    }
+  },
+  {
+    "status": 400,
+    "body": "{\"error\":\"boom\"}",
+    "parsed": {
+      "code": null,
+      "message": "boom"
+    },
+    "raised": {
+      "type": "NovelAIValidationError",
+      "message": "NovelAI HTTP 400: boom [code 400: invalid request (validation failed)]",
+      "code": 400,
+      "explanation": "invalid request (validation failed)"
+    }
+  },
+  {
+    "status": 400,
+    "body": "{\"detail\":\" nope \"}",
+    "parsed": {
+      "code": null,
+      "message": "nope"
+    },
+    "raised": {
+      "type": "NovelAIValidationError",
+      "message": "NovelAI HTTP 400: nope [code 400: invalid request (validation failed)]",
+      "code": 400,
+      "explanation": "invalid request (validation failed)"
+    }
+  }
+]
