@@ -26,3 +26,5 @@ npm-debug.log*
 # Tooling artifacts
 fixtures/golden/.generated-at
 docs/book/
+# Test scratch space
+/tmp-bindings/

@@ -1465,6 +1465,8 @@ name = "novelai-image-ffi-uniffi"
 version = "0.1.0-dev.1"
 dependencies = [
  "novelai-image-sdk",
+ "serde_json",
+ "thiserror",
  "tokio",
  "uniffi",
 ]

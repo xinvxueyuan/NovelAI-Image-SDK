@@ -334,7 +334,9 @@ impl GenerationRequest {
         self.width = self.width.div_ceil(64) * 64;
         self.height = self.height.div_ceil(64) * 64;
         if self.width * self.height > 3_047_424 {
-            return Err(Error::validation("total resolution exceeds NovelAI's limit"));
+            return Err(Error::validation(
+                "total resolution exceeds NovelAI's limit",
+            ));
         }
         if self.n_samples > self.max_samples() {
             return Err(Error::validation(
@@ -368,9 +370,7 @@ impl GenerationRequest {
                 return Err(Error::validation("inpainting requires a mask"));
             }
             if !self.model.is_inpaint() {
-                return Err(Error::validation(
-                    "inpainting requires an inpainting model",
-                ));
+                return Err(Error::validation("inpainting requires an inpainting model"));
             }
         }
         if self.strength.is_some_and(|s| !(0.01..=0.99).contains(&s)) {
@@ -583,7 +583,11 @@ impl GenerationRequestBuilder {
     builder_setter!(skip_cfg_above_sigma, Option<u32>, skip_cfg_above_sigma);
     builder_setter!(legacy, bool, legacy);
     builder_setter!(legacy_v3_extend, bool, legacy_v3_extend);
-    builder_setter!(inpaint_img2img_strength, Option<u8>, inpaint_img2img_strength);
+    builder_setter!(
+        inpaint_img2img_strength,
+        Option<u8>,
+        inpaint_img2img_strength
+    );
     builder_setter!(straight_alpha, bool, straight_alpha);
     builder_setter!(estimate_only, bool, estimate_only);
 
@@ -594,10 +598,7 @@ impl GenerationRequestBuilder {
 
     /// Validate and normalize with an explicit RNG (reproducible
     /// `extra_noise_seed`).
-    pub fn build_with_rng<R: Rng + ?Sized>(
-        self,
-        rng: &mut R,
-    ) -> Result<GenerationRequest, Error> {
+    pub fn build_with_rng<R: Rng + ?Sized>(self, rng: &mut R) -> Result<GenerationRequest, Error> {
         self.request.normalize_with_rng(rng)
     }
 }
@@ -610,17 +611,21 @@ mod tests {
     fn defaults_and_rounding() {
         let req = GenerationRequest::new("a cat").build().unwrap();
         assert_eq!((req.width, req.height), (832, 1216));
-        let req = GenerationRequest::new("a cat").width(100).height(100).build().unwrap();
+        let req = GenerationRequest::new("a cat")
+            .width(100)
+            .height(100)
+            .build()
+            .unwrap();
         assert_eq!((req.width, req.height), (128, 128));
     }
 
     #[test]
     fn validation_messages_match_python() {
-        let cases: &[(&str, fn(&mut GenerationRequestBuilder))] = &[
-            ("prompt must not be empty", |b| {
-                *b = std::mem::replace(b, GenerationRequest::new("x")).negative_prompt(String::new());
-            }),
-        ];
+        let cases: &[(&str, fn(&mut GenerationRequestBuilder))] =
+            &[("prompt must not be empty", |b| {
+                *b = std::mem::replace(b, GenerationRequest::new("x"))
+                    .negative_prompt(String::new());
+            })];
         let _ = cases;
 
         let err = GenerationRequest::new("  ").build().unwrap_err();
@@ -630,13 +635,25 @@ mod tests {
         assert_eq!(err.to_string(), "steps must be between 1 and 50");
 
         let err = GenerationRequest::new("x").width(32).build().unwrap_err();
-        assert_eq!(err.to_string(), "image dimensions must be between 64 and 49152");
+        assert_eq!(
+            err.to_string(),
+            "image dimensions must be between 64 and 49152"
+        );
 
-        let err = GenerationRequest::new("x").n_samples(9).build().unwrap_err();
+        let err = GenerationRequest::new("x")
+            .n_samples(9)
+            .build()
+            .unwrap_err();
         assert_eq!(err.to_string(), "n_samples must be between 1 and 8");
 
-        let err = GenerationRequest::new("x").action(Action::IMG2IMG).build().unwrap_err();
-        assert_eq!(err.to_string(), "image-conditioned actions require an image");
+        let err = GenerationRequest::new("x")
+            .action(Action::IMG2IMG)
+            .build()
+            .unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "image-conditioned actions require an image"
+        );
     }
 
     #[test]
@@ -654,11 +671,20 @@ mod tests {
 
     #[test]
     fn v5_inpaint_strength() {
-        let req = GenerationRequest::new("x").model(Model::V5).build().unwrap();
+        let req = GenerationRequest::new("x")
+            .model(Model::V5)
+            .build()
+            .unwrap();
         assert_eq!(req.inpaint_img2img_strength, Some(1));
-        let req = GenerationRequest::new("x").model(Model::V4_5).build().unwrap();
+        let req = GenerationRequest::new("x")
+            .model(Model::V4_5)
+            .build()
+            .unwrap();
         assert_eq!(req.inpaint_img2img_strength, Some(1));
-        let req = GenerationRequest::new("x").model(Model::V3).build().unwrap();
+        let req = GenerationRequest::new("x")
+            .model(Model::V3)
+            .build()
+            .unwrap();
         assert_eq!(req.inpaint_img2img_strength, None);
     }
 
@@ -678,7 +704,11 @@ mod tests {
         // "blurry" survives from the user prompt.
         let negative = req.effective_negative_prompt();
         assert!(negative.ends_with(", blurry"), "got: {negative}");
-        assert_eq!(negative.matches("nsfw").count(), 1, "dedupe failed: {negative}");
+        assert_eq!(
+            negative.matches("nsfw").count(),
+            1,
+            "dedupe failed: {negative}"
+        );
     }
 
     #[test]
@@ -701,7 +731,11 @@ mod tests {
             (1472, 1472, 1),
         ];
         for (w, h, expected) in bands {
-            let req = GenerationRequest::new("x").width(w).height(h).build().unwrap();
+            let req = GenerationRequest::new("x")
+                .width(w)
+                .height(h)
+                .build()
+                .unwrap();
             assert_eq!(req.max_samples(), expected, "{w}x{h}");
         }
     }

@@ -111,7 +111,10 @@ pub fn build_generation_payload(request: &GenerationRequest) -> Value {
     // `sm`/`sm_dyn` with `false` (appended at the end, matching Python's
     // dict-reassignment semantics).
     let mut optionals: Vec<(&str, Option<Value>)> = vec![
-        ("extra_noise_seed", request.extra_noise_seed.map(Value::from)),
+        (
+            "extra_noise_seed",
+            request.extra_noise_seed.map(Value::from),
+        ),
         ("image", request.image.as_deref().map(Value::from)),
         ("mask", request.mask.as_deref().map(Value::from)),
         ("strength", request.strength.map(Value::from)),
@@ -135,10 +138,7 @@ pub fn build_generation_payload(request: &GenerationRequest) -> Value {
         }
     }
     if !request.references.is_empty() {
-        put(
-            "reference_image_multiple",
-            json!(&request.references),
-        );
+        put("reference_image_multiple", json!(&request.references));
         if !request.reference_information.is_empty() {
             put(
                 "reference_information_extracted_multiple",
@@ -233,7 +233,10 @@ mod tests {
 
     #[test]
     fn v3_has_no_structured_prompt() {
-        let req = GenerationRequest::new("1girl").model(Model::V3).build().unwrap();
+        let req = GenerationRequest::new("1girl")
+            .model(Model::V3)
+            .build()
+            .unwrap();
         let payload = build_generation_payload(&req);
         let params = payload["parameters"].as_object().unwrap();
         assert!(!params.contains_key("v4_prompt"));

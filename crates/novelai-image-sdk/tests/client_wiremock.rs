@@ -7,7 +7,9 @@
 use novelai_image_sdk::auth::Credentials;
 use novelai_image_sdk::client::NovelAiClient;
 use novelai_image_sdk::config::ClientConfig;
-use novelai_image_sdk::constants::{Action, ControlNetModel, DirectorTool, Emotion, EmotionLevel, Model};
+use novelai_image_sdk::constants::{
+    Action, ControlNetModel, DirectorTool, Emotion, EmotionLevel, Model,
+};
 use novelai_image_sdk::imaging::TINY_PNG;
 use novelai_image_sdk::models::GenerationRequest;
 use serde_json::Value;
@@ -44,7 +46,9 @@ impl wiremock::Match for ExactHeader {
 }
 
 /// `Result::unwrap_err` needs `Debug`, which a boxed stream does not have.
-fn err_stream<T>(result: Result<T, novelai_image_sdk::error::Error>) -> novelai_image_sdk::error::Error {
+fn err_stream<T>(
+    result: Result<T, novelai_image_sdk::error::Error>,
+) -> novelai_image_sdk::error::Error {
     match result {
         Ok(_) => panic!("expected an error"),
         Err(err) => err,
@@ -150,7 +154,10 @@ async fn upscale_body_is_exact() {
         .mount(&server)
         .await;
 
-    let out = client(&server).upscale(TINY_PNG, 4, None).await.expect("upscale");
+    let out = client(&server)
+        .upscale(TINY_PNG, 4, None)
+        .await
+        .expect("upscale");
     assert_eq!(out.filename, "upscaled.png");
     assert_eq!(out.data, TINY_PNG);
 }
@@ -284,10 +291,22 @@ async fn login_is_called_once_for_password_credentials() {
 #[tokio::test]
 async fn statuses_map_to_typed_errors() {
     let cases = [
-        (400u16, "NovelAI HTTP 400: boom [code 400: invalid request (validation failed)]"),
-        (401u16, "NovelAI HTTP 401: boom [code 401: authentication failed (missing, invalid, or expired credentials)]"),
-        (402u16, "NovelAI HTTP 402: boom [code 402: active subscription or Anlas required]"),
-        (429u16, "NovelAI HTTP 429: boom [code 429: rate limit or concurrency limit reached]"),
+        (
+            400u16,
+            "NovelAI HTTP 400: boom [code 400: invalid request (validation failed)]",
+        ),
+        (
+            401u16,
+            "NovelAI HTTP 401: boom [code 401: authentication failed (missing, invalid, or expired credentials)]",
+        ),
+        (
+            402u16,
+            "NovelAI HTTP 402: boom [code 402: active subscription or Anlas required]",
+        ),
+        (
+            429u16,
+            "NovelAI HTTP 429: boom [code 429: rate limit or concurrency limit reached]",
+        ),
         (500u16, "NovelAI HTTP 500: boom [code 500]"),
     ];
     for (status, expected) in cases {
@@ -295,10 +314,12 @@ async fn statuses_map_to_typed_errors() {
         let server = MockServer::start().await;
         Mock::given(method("GET"))
             .and(path("/user/subscription"))
-            .respond_with(ResponseTemplate::new(status).set_body_json(serde_json::json!({
-                "statusCode": status,
-                "message": "boom"
-            })))
+            .respond_with(
+                ResponseTemplate::new(status).set_body_json(serde_json::json!({
+                    "statusCode": status,
+                    "message": "boom"
+                })),
+            )
             .mount(&server)
             .await;
         let err = client(&server).get_subscription().await.unwrap_err();
@@ -331,8 +352,7 @@ async fn img2img_sends_image_and_strength() {
     client.generate(&request).await.expect("generate");
 
     let requests = server.received_requests().await.unwrap_or_default();
-    let payload: Value =
-        serde_json::from_slice(&requests[0].body).expect("request body is JSON");
+    let payload: Value = serde_json::from_slice(&requests[0].body).expect("request body is JSON");
     let params = &payload["parameters"];
     assert_eq!(params["image"], request.image.clone().unwrap());
     assert_eq!(params["strength"], 0.3);

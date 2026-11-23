@@ -120,9 +120,9 @@ fn event(value: rmpv::Value) -> Result<Option<GenerationEvent>, Error> {
         Some("retry") => return Ok(None),
         Some("error") => {
             let code = lookup("code").and_then(|c| match c {
-                rmpv::Value::Integer(i) => i.as_u64().and_then(|v| {
-                    u16::try_from(v).ok().map(ErrorCode::Http)
-                }),
+                rmpv::Value::Integer(i) => i
+                    .as_u64()
+                    .and_then(|v| u16::try_from(v).ok().map(ErrorCode::Http)),
                 rmpv::Value::String(s) => s.as_str().map(|s| ErrorCode::Api(s.to_owned())),
                 _ => None,
             });
@@ -144,23 +144,21 @@ fn event(value: rmpv::Value) -> Result<Option<GenerationEvent>, Error> {
         return Ok(None);
     };
     let event_type = event_type.expect("checked above").to_owned();
-    let sample_index = lookup("samp_ix")
-        .and_then(rmpv::Value::as_i64)
-        .unwrap_or(0);
-    let extension = if image.starts_with(b"\x89PNG") { "png" } else { "jpg" };
+    let sample_index = lookup("samp_ix").and_then(rmpv::Value::as_i64).unwrap_or(0);
+    let extension = if image.starts_with(b"\x89PNG") {
+        "png"
+    } else {
+        "jpg"
+    };
     Ok(Some(GenerationEvent {
         event_type: event_type.clone(),
         sample_index,
-        step_index: lookup("step_ix")
-            .and_then(rmpv::Value::as_i64)
-            .unwrap_or(0),
+        step_index: lookup("step_ix").and_then(rmpv::Value::as_i64).unwrap_or(0),
         generation_id: lookup("gen_id")
             .and_then(rmpv::Value::as_str)
             .unwrap_or_default()
             .to_owned(),
-        sigma: lookup("sigma")
-            .and_then(rmpv::Value::as_f64)
-            .unwrap_or(0.0),
+        sigma: lookup("sigma").and_then(rmpv::Value::as_f64).unwrap_or(0.0),
         image: NovelAIImage {
             filename: format!("sample-{sample_index}-{event_type}.{extension}"),
             data: image.to_vec(),
@@ -194,7 +192,8 @@ impl MessagePackStreamParser {
                 if self.buffer.len() < 4 {
                     break;
                 }
-                let frame_length = u32::from_be_bytes(self.buffer[..4].try_into().expect("4 bytes"));
+                let frame_length =
+                    u32::from_be_bytes(self.buffer[..4].try_into().expect("4 bytes"));
                 self.buffer.drain(..4);
                 if frame_length > MAX_FRAME_BYTES {
                     return Err(Error::response("MessagePack frame is too large"));
@@ -374,7 +373,10 @@ mod tests {
         let err = check_status(402, br#"{"statusCode":402,"message":"subscribe"}"#).unwrap_err();
         assert!(matches!(err, Error::InsufficientCredits { .. }));
         assert_eq!(err.code(), Some(&ErrorCode::Http(402)));
-        assert!(err.to_string().contains("[code 402: active subscription or Anlas required]"));
+        assert!(
+            err.to_string()
+                .contains("[code 402: active subscription or Anlas required]")
+        );
 
         let err = check_status(500, b"oops").unwrap_err();
         assert!(matches!(err, Error::Provider { .. }));

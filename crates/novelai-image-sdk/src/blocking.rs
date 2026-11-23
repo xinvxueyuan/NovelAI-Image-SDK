@@ -81,7 +81,10 @@ impl BlockingNovAiClient {
     }
 
     /// Pull-based streaming handle; `next()` drives one event at a time.
-    pub fn stream_generation(&self, request: &GenerationRequest) -> Result<BlockingEventStream, Error> {
+    pub fn stream_generation(
+        &self,
+        request: &GenerationRequest,
+    ) -> Result<BlockingEventStream, Error> {
         let stream = self.block_on(self.client.stream_generation(request))??;
         Ok(BlockingEventStream {
             stream,
@@ -96,7 +99,10 @@ impl BlockingNovAiClient {
         information_extracted: f64,
         model: Model,
     ) -> Result<String, Error> {
-        self.block_on(self.client.encode_vibe(reference, information_extracted, model))?
+        self.block_on(
+            self.client
+                .encode_vibe(reference, information_extracted, model),
+        )?
     }
 
     /// Run a Director tool.
@@ -187,8 +193,8 @@ mod tests {
     #[test]
     fn rejects_use_from_an_async_runtime() {
         let runtime = tokio::runtime::Runtime::new().unwrap();
-        let client = BlockingNovAiClient::new(ClientConfig::new(Credentials::token("t")))
-            .expect("client");
+        let client =
+            BlockingNovAiClient::new(ClientConfig::new(Credentials::token("t"))).expect("client");
         runtime.block_on(async {
             let err = client.get_user_data().unwrap_err();
             assert!(err.to_string().contains("within an async runtime"));

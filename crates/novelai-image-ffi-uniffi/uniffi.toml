@@ -1,0 +1,16 @@
+# Binding generator configuration. Generated artifacts are not committed; see
+# tools/xtask (phase P3) and .github/workflows/bindings.yml.
+[bindings.python]
+cdylib_name = "novelai_image_sdk_ffi"
+
+[bindings.kotlin]
+package_name = "io.github.xinvxueyuan.novelai.image.sdk"
+cdylib_name = "novelai_image_sdk_ffi"
+
+[bindings.swift]
+module_name = "NovelAIImageSDK"
+cdylib_name = "novelai_image_sdk_ffi"
+
+[bindings.csharp]
+namespace = "NovelAI.Image.Sdk"
+cdylib_name = "novelai_image_sdk_ffi"

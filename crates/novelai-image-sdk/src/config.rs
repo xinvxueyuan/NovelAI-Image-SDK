@@ -122,6 +122,10 @@ mod tests {
     #[test]
     fn validation_rejects_missing_credentials() {
         assert!(ClientConfig::default().validate().is_err());
-        assert!(ClientConfig::new(Credentials::token("t")).validate().is_ok());
+        assert!(
+            ClientConfig::new(Credentials::token("t"))
+                .validate()
+                .is_ok()
+        );
     }
 }

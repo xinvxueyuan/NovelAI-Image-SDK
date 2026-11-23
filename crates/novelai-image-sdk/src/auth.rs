@@ -225,7 +225,12 @@ mod tests {
     fn tracking_headers_shape() {
         let headers = TrackingHeaders::generate();
         assert_eq!(headers.correlation_id.len(), 6);
-        assert!(headers.correlation_id.bytes().all(|b| b.is_ascii_alphanumeric()));
+        assert!(
+            headers
+                .correlation_id
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric())
+        );
         // 2026-11-23T12:34:56.789Z
         let ts = &headers.initiated_at;
         assert_eq!(ts.len(), 24, "{ts}");
@@ -240,10 +245,14 @@ mod tests {
         // Deterministic: the derivation has no randomness.
         let key = derive_access_key("user@example.com", "hunter2").unwrap();
         assert_eq!(key.len(), 64, "{key}");
-        assert!(key
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_'));
-        assert_eq!(key, derive_access_key("user@example.com", "hunter2").unwrap());
+        assert!(
+            key.bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+        );
+        assert_eq!(
+            key,
+            derive_access_key("user@example.com", "hunter2").unwrap()
+        );
     }
 
     #[test]

@@ -11,14 +11,17 @@ use novelai_image_sdk::constants::{
     UPSCALE_MODELS, quality_tags, uc_presets,
 };
 use novelai_image_sdk::error::{ErrorCode, parse_error_body};
-use novelai_image_sdk::response::check_status;
 use novelai_image_sdk::models::{CharacterPrompt, GenerationRequest};
 use novelai_image_sdk::payload::build_generation_payload;
+use novelai_image_sdk::response::check_status;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
 fn fixture(name: &str) -> Value {
-    let path = format!("{}/../../fixtures/golden/{name}", env!("CARGO_MANIFEST_DIR"));
+    let path = format!(
+        "{}/../../fixtures/golden/{name}",
+        env!("CARGO_MANIFEST_DIR")
+    );
     let text = std::fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("read {path}: {e} — run scripts/gen_fixtures.py"));
     serde_json::from_str(&text).expect("fixture is valid JSON")
@@ -50,7 +53,11 @@ fn constants_match_reference() {
             .iter()
             .map(|v| v.as_str().unwrap().to_owned())
             .collect();
-        assert_eq!(presets, uc_presets(model).map(str::to_owned).to_vec(), "{id} uc presets");
+        assert_eq!(
+            presets,
+            uc_presets(model).map(str::to_owned).to_vec(),
+            "{id} uc presets"
+        );
     }
 
     let wire = |key: &str, values: &[&str]| {
@@ -62,21 +69,39 @@ fn constants_match_reference() {
             .collect();
         assert_eq!(expected, values, "{key}");
     };
-    wire("samplers", &Sampler::ALL.iter().map(|s| s.as_wire()).collect::<Vec<_>>());
+    wire(
+        "samplers",
+        &Sampler::ALL.iter().map(|s| s.as_wire()).collect::<Vec<_>>(),
+    );
     wire(
         "noise_schedules",
-        &NoiseSchedule::ALL.iter().map(|s| s.as_wire()).collect::<Vec<_>>(),
+        &NoiseSchedule::ALL
+            .iter()
+            .map(|s| s.as_wire())
+            .collect::<Vec<_>>(),
     );
-    wire("actions", &Action::ALL.iter().map(|s| s.as_wire()).collect::<Vec<_>>());
+    wire(
+        "actions",
+        &Action::ALL.iter().map(|s| s.as_wire()).collect::<Vec<_>>(),
+    );
     wire(
         "controlnet_models",
-        &ControlNetModel::ALL.iter().map(|s| s.as_wire()).collect::<Vec<_>>(),
+        &ControlNetModel::ALL
+            .iter()
+            .map(|s| s.as_wire())
+            .collect::<Vec<_>>(),
     );
     wire(
         "director_tools",
-        &DirectorTool::ALL.iter().map(|s| s.as_wire()).collect::<Vec<_>>(),
+        &DirectorTool::ALL
+            .iter()
+            .map(|s| s.as_wire())
+            .collect::<Vec<_>>(),
     );
-    wire("emotions", &Emotion::ALL.iter().map(|s| s.as_wire()).collect::<Vec<_>>());
+    wire(
+        "emotions",
+        &Emotion::ALL.iter().map(|s| s.as_wire()).collect::<Vec<_>>(),
+    );
 
     let levels: Vec<Vec<Value>> = expected["emotion_levels"]
         .as_array()
@@ -244,6 +269,53 @@ fn payload_wire_bytes_match_reference() {
                 "payload #{index}: parameters missing {key}"
             );
         }
+    }
+}
+
+#[test]
+fn anlas_estimates_match_reference() {
+    let cases = fixture("anlas.json");
+    for case in cases.as_array().unwrap() {
+        let action: Action = case["action"].as_str().unwrap().parse().unwrap();
+        let mut builder = GenerationRequest::new("x")
+            .width(case["width"].as_u64().unwrap() as u32)
+            .height(case["height"].as_u64().unwrap() as u32)
+            .steps(case["steps"].as_u64().unwrap() as u32)
+            .n_samples(case["n_samples"].as_u64().unwrap() as u32)
+            .model(case["model"].as_str().unwrap().parse().unwrap())
+            .action(action)
+            .auto_smea(case["auto_smea"].as_bool().unwrap());
+        if let Some(strength) = case["strength"].as_f64() {
+            builder = builder
+                .strength(Some(strength))
+                .image(Some("aGVsbG8=".into()));
+        }
+        if let Some(value) = case["smea"].as_bool() {
+            builder = builder.smea(Some(value));
+        }
+        if let Some(value) = case["smea_dynamic"].as_bool() {
+            builder = builder.smea_dynamic(Some(value));
+        }
+        let request = builder.build().expect("fixture request is valid");
+        let expected = case["opus"].as_u64().unwrap() as u32;
+        let expected_free = case["opus_free"].as_u64().unwrap() as u32;
+        assert_eq!(
+            request.estimate_anlas_cost(false),
+            expected,
+            "{}x{} steps {} samples {}",
+            request.width,
+            request.height,
+            request.steps,
+            request.n_samples
+        );
+        assert_eq!(
+            request.estimate_anlas_cost(true),
+            expected_free,
+            "opus-free {}x{} steps {}",
+            request.width,
+            request.height,
+            request.steps
+        );
     }
 }
 

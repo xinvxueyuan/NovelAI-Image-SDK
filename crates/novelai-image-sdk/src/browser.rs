@@ -174,7 +174,11 @@ mod tests {
         };
         assert_eq!(get("User-Agent"), CHROME_USER_AGENT);
         assert!(get("User-Agent").contains("Chrome/150"));
-        assert_eq!(get("Referer"), "https://novelai.net/", "trailing slash matters");
+        assert_eq!(
+            get("Referer"),
+            "https://novelai.net/",
+            "trailing slash matters"
+        );
         assert_eq!(get("Sec-Fetch-Site"), "same-site");
         assert_eq!(get("Priority"), "u=1, i");
         assert_eq!(get("Accept-Encoding"), "gzip, deflate, br, zstd");

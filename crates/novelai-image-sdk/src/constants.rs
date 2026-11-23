@@ -8,8 +8,6 @@
 //! Variant names deliberately mirror the reference Python enums (`V4_5`,
 //! `DPM_2M`, `PALETTE_SWAP`), so non-camel-case is expected.
 
-
-
 use std::fmt;
 use std::str::FromStr;
 
@@ -382,12 +380,9 @@ pub fn quality_tags(model: Model) -> &'static str {
 /// The V5 presets reuse the V4.5 texts as a tuning baseline.
 pub fn uc_presets(model: Model) -> [&'static str; 4] {
     match model {
-        Model::V5_CURATED | Model::V4_5_CURATED | Model::V4_5_CURATED_INPAINT => [
-            V45_CURATED_HEAVY,
-            V45_CURATED_LIGHT,
-            V45_CURATED_FOCUS,
-            "",
-        ],
+        Model::V5_CURATED | Model::V4_5_CURATED | Model::V4_5_CURATED_INPAINT => {
+            [V45_CURATED_HEAVY, V45_CURATED_LIGHT, V45_CURATED_FOCUS, ""]
+        }
         Model::V5 | Model::V5_INPAINT | Model::V4_5 | Model::V4_5_INPAINT => {
             [V45_HEAVY, V45_LIGHT, V45_FURRY, V45_HUMAN]
         }
@@ -412,8 +407,7 @@ const V45_FURRY: &str = "nsfw, {worst quality}, distracting watermark, unfinishe
 {widescreen}, upscale, {sequence}, {{grandfathered content}}, blurred foreground, chromatic \
 aberration, sketch, everyone, [sketch background], simple, [flat colors], ych (character), \
 outline, multiple scenes, [[horror (theme)]], comic";
-const V45_HUMAN: &str =
-    "nsfw, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg \
+const V45_HUMAN: &str = "nsfw, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg \
 artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple \
 views, logo, too many watermarks, negative space, blank page, @_@, mismatched pupils, glowing \
 eyes, bad anatomy";
@@ -473,10 +467,15 @@ mod tests {
 
     #[test]
     fn human_preset_is_heavy_plus_suffix() {
-        assert_eq!(V45_HUMAN, format!("{V45_HEAVY}, @_@, mismatched pupils, glowing eyes, bad anatomy"));
+        assert_eq!(
+            V45_HUMAN,
+            format!("{V45_HEAVY}, @_@, mismatched pupils, glowing eyes, bad anatomy")
+        );
         assert_eq!(
             V3_HUMAN,
-            format!("{V3_HEAVY}, bad anatomy, bad hands, @_@, mismatched pupils, heart-shaped pupils, glowing eyes")
+            format!(
+                "{V3_HEAVY}, bad anatomy, bad hands, @_@, mismatched pupils, heart-shaped pupils, glowing eyes"
+            )
         );
     }
 

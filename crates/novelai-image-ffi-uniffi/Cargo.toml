@@ -16,3 +16,5 @@ crate-type = ["cdylib", "staticlib", "lib"]
 novelai-image-sdk = { path = "../novelai-image-sdk", version = "0.1.0-dev.1" }
 uniffi = { workspace = true }
 tokio = { workspace = true }
+thiserror = { workspace = true }
+serde_json = { workspace = true }

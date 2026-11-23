@@ -268,6 +268,54 @@ def main() -> None:
         )
     dump("errors.json", errors)
 
+    # Anlas estimates: the pure pricing formula.
+    anlas = []
+    for width, height, steps, n_samples, model, action, strength, smea in [
+        (832, 1216, 28, 1, Model.V4_5, Action.GENERATE, None, None),
+        (832, 1216, 28, 4, Model.V4_5, Action.GENERATE, None, None),
+        (1024, 1024, 50, 1, Model.V4_5, Action.GENERATE, None, None),
+        (832, 1216, 28, 1, Model.V4, Action.GENERATE, None, "dynamic"),
+        (832, 1216, 28, 1, Model.V4, Action.GENERATE, None, "static"),
+        (64, 64, 1, 1, Model.V3, Action.GENERATE, None, None),
+        (128, 1216, 28, 1, Model.V4_5, Action.GENERATE, None, None),
+        (832, 1216, 28, 1, Model.V4_5, Action.IMG2IMG, 0.55, None),
+        (1536, 1536, 28, 1, Model.V4_5, Action.GENERATE, None, None),
+    ]:
+        kwargs = {}
+        if smea == "dynamic":
+            kwargs = {"smea_dynamic": True}
+        elif smea == "static":
+            kwargs = {"smea": True}
+        request = GenerationRequest(
+            prompt="x",
+            width=width,
+            height=height,
+            steps=steps,
+            n_samples=n_samples,
+            model=model,
+            action=action,
+            strength=strength,
+            image="aGVsbG8=" if action is Action.IMG2IMG else None,
+            **kwargs,
+        )
+        anlas.append(
+            {
+                "width": request.width,
+                "height": request.height,
+                "steps": request.steps,
+                "n_samples": request.n_samples,
+                "model": request.model.value,
+                "action": request.action.value,
+                "strength": request.strength,
+                "smea": request.smea,
+                "smea_dynamic": request.smea_dynamic,
+                "auto_smea": request.auto_smea,
+                "opus": request.estimate_anlas_cost(opus=False),
+                "opus_free": request.estimate_anlas_cost(opus=True),
+            }
+        )
+    dump("anlas.json", anlas)
+
 
 if __name__ == "__main__":
     main()

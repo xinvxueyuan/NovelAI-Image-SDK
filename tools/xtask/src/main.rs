@@ -42,13 +42,18 @@ async fn main() -> anyhow::Result<()> {
 async fn live_spike(path: String, token: Option<String>) -> anyhow::Result<()> {
     let base = "https://image.novelai.net";
     let token = token.or_else(|| std::env::var("NOVELAI_TOKEN").ok());
-    println!("probe: {base}{path} (token: {})", if token.is_some() { "yes" } else { "no" });
+    println!(
+        "probe: {base}{path} (token: {})",
+        if token.is_some() { "yes" } else { "no" }
+    );
 
     // Without a real token, a placeholder still sends the request to the wire;
     // NovelAI answers 401 (proving the fingerprint was accepted).
     let client = novelai_image_sdk::client::NovelAiClient::new(
         novelai_image_sdk::config::ClientConfig::new(novelai_image_sdk::auth::Credentials::token(
-            token.clone().unwrap_or_else(|| "probe-invalid-token".into()),
+            token
+                .clone()
+                .unwrap_or_else(|| "probe-invalid-token".into()),
         )),
     )?;
     let (status, body) = match token {
@@ -65,7 +70,11 @@ async fn live_spike(path: String, token: Option<String>) -> anyhow::Result<()> {
     println!("status: {status}");
     println!("body: {body}");
 
-    let ok = if token.is_some() { (200..300).contains(&status) } else { status == 401 };
+    let ok = if token.is_some() {
+        (200..300).contains(&status)
+    } else {
+        status == 401
+    };
     anyhow::ensure!(
         ok,
         "unexpected status {status}: request did not reach NovelAI's origin \

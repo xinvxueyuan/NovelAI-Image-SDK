@@ -31,7 +31,8 @@ use crate::response::{
 };
 
 /// A stream of generation events.
-pub type GenerationStream = futures_util::stream::BoxStream<'static, Result<GenerationEvent, Error>>;
+pub type GenerationStream =
+    futures_util::stream::BoxStream<'static, Result<GenerationEvent, Error>>;
 
 /// The NovelAI API client. Cheap to clone; the underlying HTTP session and
 /// caches are shared.
@@ -302,7 +303,10 @@ impl NovelAiClient {
         Ok(token)
     }
 
-    async fn prepare_references(&self, mut request: GenerationRequest) -> Result<GenerationRequest, Error> {
+    async fn prepare_references(
+        &self,
+        mut request: GenerationRequest,
+    ) -> Result<GenerationRequest, Error> {
         if !request.model.is_v4() || request.references.is_empty() {
             return Ok(request);
         }
@@ -318,7 +322,10 @@ impl NovelAiClient {
         };
         let mut encoded = Vec::with_capacity(request.references.len());
         for (index, reference) in request.references.iter().enumerate() {
-            encoded.push(self.encode_vibe(reference, information[index], request.model).await?);
+            encoded.push(
+                self.encode_vibe(reference, information[index], request.model)
+                    .await?,
+            );
         }
         request.references = encoded;
         request.reference_information.clear();
@@ -339,8 +346,8 @@ impl NovelAiClient {
     ) -> Result<NovelAIImage, Error> {
         let parsed = parse_image(image)?;
         let (prompt, defry) = if tool == DirectorTool::EMOTION {
-            let emotion = emotion
-                .ok_or_else(|| Error::validation("emotion tool requires an emotion"))?;
+            let emotion =
+                emotion.ok_or_else(|| Error::validation("emotion tool requires an emotion"))?;
             let prompt = format!(
                 "{};;{}",
                 emotion.as_wire(),
@@ -487,7 +494,10 @@ impl NovelAiClient {
             )
             .await?;
         let value = json_object(&content)?;
-        let tags = value.get("tags").cloned().unwrap_or(Value::Array(Vec::new()));
+        let tags = value
+            .get("tags")
+            .cloned()
+            .unwrap_or(Value::Array(Vec::new()));
         let Value::Array(items) = tags else {
             return Err(Error::response("NovelAI returned invalid tag suggestions"));
         };
@@ -516,7 +526,11 @@ impl NovelAiClient {
         let content = self
             .request(
                 wreq::Method::GET,
-                &format!("{}{}", self.inner.config.account_base_url, endpoint.as_str()),
+                &format!(
+                    "{}{}",
+                    self.inner.config.account_base_url,
+                    endpoint.as_str()
+                ),
                 true,
                 None,
                 None,
@@ -688,7 +702,10 @@ fn with_query(url: &str, params: Option<&[(&str, &str)]>) -> String {
                 .map(|(k, v)| format!("{}={}", percent_encode(k), percent_encode(v)))
                 .collect::<Vec<_>>()
                 .join("&");
-            format!("{url}{}{encoded}", if url.contains('?') { '&' } else { '?' })
+            format!(
+                "{url}{}{encoded}",
+                if url.contains('?') { '&' } else { '?' }
+            )
         }
     }
 }
@@ -708,10 +725,12 @@ fn percent_encode(value: &str) -> String {
 
 fn hex(bytes: &[u8]) -> String {
     use std::fmt::Write as _;
-    bytes.iter().fold(String::with_capacity(bytes.len() * 2), |mut out, b| {
-        let _ = write!(out, "{b:02x}");
-        out
-    })
+    bytes
+        .iter()
+        .fold(String::with_capacity(bytes.len() * 2), |mut out, b| {
+            let _ = write!(out, "{b:02x}");
+            out
+        })
 }
 
 /// Headers sent with every request (for documentation and host integrations).
@@ -723,7 +742,6 @@ pub fn default_headers() -> HashMap<String, String> {
     map.insert("Content-Type".into(), "application/json".into());
     map
 }
-
 
 #[cfg(test)]
 mod tests {

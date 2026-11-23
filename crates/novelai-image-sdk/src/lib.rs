@@ -39,15 +39,14 @@
     clippy::type_complexity,
     clippy::ptr_arg,
     clippy::ref_option,
-    clippy::trivially_copy_pass_by_ref,
-    
+    clippy::trivially_copy_pass_by_ref
 )]
 
 pub mod auth;
-pub mod browser;
-pub mod client;
 #[cfg(feature = "blocking")]
 pub mod blocking;
+pub mod browser;
+pub mod client;
 pub mod config;
 pub mod constants;
 pub mod error;

@@ -39,7 +39,10 @@ impl fmt::Display for ErrorCode {
 /// than enumerated.
 pub const OFFICIAL_CODE_EXPLANATIONS: &[(u16, &str)] = &[
     (400, "invalid request (validation failed)"),
-    (401, "authentication failed (missing, invalid, or expired credentials)"),
+    (
+        401,
+        "authentication failed (missing, invalid, or expired credentials)",
+    ),
     (402, "active subscription or Anlas required"),
     (409, "request conflicted with server state"),
     (429, "rate limit or concurrency limit reached"),
@@ -286,9 +289,9 @@ pub fn parse_error_body(content: &[u8]) -> ErrorInfo {
     };
 
     let code = match map.get("statusCode").or_else(|| map.get("code")) {
-        Some(serde_json::Value::Number(n)) => n.as_u64().and_then(|v| {
-            u16::try_from(v).ok().map(ErrorCode::Http)
-        }),
+        Some(serde_json::Value::Number(n)) => n
+            .as_u64()
+            .and_then(|v| u16::try_from(v).ok().map(ErrorCode::Http)),
         Some(serde_json::Value::String(s)) => Some(ErrorCode::Api(s.clone())),
         _ => None,
     };
@@ -329,14 +332,25 @@ mod tests {
             code: Some(ErrorCode::Api("E_CONFLICT".into())),
             explanation: None,
         };
-        assert_eq!(err.to_string(), "NovelAI HTTP 409: conflict [code E_CONFLICT]");
+        assert_eq!(
+            err.to_string(),
+            "NovelAI HTTP 409: conflict [code E_CONFLICT]"
+        );
     }
 
     #[test]
     fn parses_novelai_error_shapes() {
         let cases = [
-            (r#"{"statusCode":429,"message":"slow down"}"#, Some(ErrorCode::Http(429)), "slow down"),
-            (r#"{"code":"E_X","message":"bad"}"#, Some(ErrorCode::Api("E_X".into())), "bad"),
+            (
+                r#"{"statusCode":429,"message":"slow down"}"#,
+                Some(ErrorCode::Http(429)),
+                "slow down",
+            ),
+            (
+                r#"{"code":"E_X","message":"bad"}"#,
+                Some(ErrorCode::Api("E_X".into())),
+                "bad",
+            ),
             (r#"{"error":"boom"}"#, None, "boom"),
             (r#"{"detail":" nope "}"#, None, "nope"),
             ("raw text", None, "raw text"),
