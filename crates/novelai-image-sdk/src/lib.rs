@@ -52,6 +52,8 @@ pub mod constants;
 pub mod error;
 pub mod imaging;
 pub mod models;
+#[cfg(feature = "output")]
+pub mod output;
 pub mod payload;
 pub mod response;
 

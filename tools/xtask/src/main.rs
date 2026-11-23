@@ -1,11 +1,13 @@
 //! Repo task runner.
 //!
-//! Subcommands are added as phases land:
-//! - `live-spike`  — Phase 0: prove wreq's Chrome profile clears Cloudflare.
-//! - `fixtures`    — Phase 1: golden fixtures from the pinned Python source.
-//! - `bindings`    — Phase 3: generate per-language bindings.
-//! - `sync-versions` / `verify-release`.
+//! - `live-spike`     — prove wreq's Chrome profile clears Cloudflare.
+//! - `bindings`       — build the FFI crate and generate per-language bindings.
+//! - `fixtures`       — print how to regenerate golden fixtures.
 
+use std::path::{Path, PathBuf};
+use std::process::Command as Proc;
+
+use anyhow::{Context, bail};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -29,13 +31,140 @@ enum Command {
         #[arg(long)]
         token: Option<String>,
     },
+
+    /// Generate UniFFI bindings (python, kotlin, swift) and the napi header.
+    Bindings {
+        /// Restrict to one language: python, kotlin, swift, or napi.
+        #[arg(long)]
+        language: Option<String>,
+        /// Release build.
+        #[arg(long)]
+        release: bool,
+    },
+
+    /// Print the exact command that regenerates the golden fixtures.
+    Fixtures,
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     match Cli::parse().command {
         Command::LiveSpike { path, token } => live_spike(path, token).await?,
+        Command::Bindings { language, release } => bindings(language, release)?,
+        Command::Fixtures => fixtures()?,
     }
+    Ok(())
+}
+
+fn repo_root() -> anyhow::Result<PathBuf> {
+    // xtask lives at <root>/tools/xtask
+    let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+    manifest
+        .ancestors()
+        .nth(2)
+        .map(Path::to_path_buf)
+        .context("could not locate the repository root")
+}
+
+fn run(command: &mut Proc) -> anyhow::Result<()> {
+    let display = format!("{command:?}");
+    let status = command
+        .status()
+        .with_context(|| format!("failed to spawn {display}"))?;
+    if !status.success() {
+        bail!("{display} failed with {status}");
+    }
+    Ok(())
+}
+
+fn bindings(language: Option<String>, release: bool) -> anyhow::Result<()> {
+    let root = repo_root()?;
+    let profile = if release { "release" } else { "debug" };
+
+    // 1. Build the FFI cdylib and the pinned bindgen binary.
+    let mut build = Proc::new(env!("CARGO"));
+    build
+        .current_dir(&root)
+        .args([
+            "build",
+            "-p",
+            "novelai-image-ffi-uniffi",
+            "-p",
+            "uniffi-bindgen",
+        ])
+        .args(if release { vec!["--release"] } else { vec![] });
+    run(&mut build)?;
+
+    // 2. Locate the cdylib.
+    let lib_name = if cfg!(target_os = "windows") {
+        "novelai_image_sdk_ffi.dll"
+    } else if cfg!(target_os = "macos") {
+        "libnovelai_image_sdk_ffi.dylib"
+    } else {
+        "libnovelai_image_sdk_ffi.so"
+    };
+    let library = root.join("target").join(profile).join(lib_name);
+    anyhow::ensure!(
+        library.exists(),
+        "cdylib not found at {} — build the ffi crate first",
+        library.display()
+    );
+
+    let bindgen = root
+        .join("target")
+        .join(profile)
+        .join(if cfg!(target_os = "windows") {
+            "uniffi-bindgen.exe"
+        } else {
+            "uniffi-bindgen"
+        });
+    anyhow::ensure!(
+        bindgen.exists(),
+        "uniffi-bindgen not found at {}",
+        bindgen.display()
+    );
+
+    let languages: Vec<&str> = match language.as_deref() {
+        Some("python") => vec!["python"],
+        Some("kotlin") => vec!["kotlin"],
+        Some("swift") => vec!["swift"],
+        Some("napi") => vec![],
+        Some(other) => bail!("unknown language {other:?}; expected python, kotlin, swift, napi"),
+        None => vec!["python", "kotlin", "swift"],
+    };
+
+    for lang in languages {
+        let out_dir = root.join("bindings").join(lang).join("generated");
+        std::fs::create_dir_all(&out_dir)?;
+        let mut generate = Proc::new(&bindgen);
+        generate
+            .current_dir(&root)
+            .arg("generate")
+            .arg("--library")
+            .arg(&library)
+            .args(["--language", lang])
+            .arg("--out-dir")
+            .arg(&out_dir);
+        run(&mut generate)?;
+        println!("generated {lang} bindings in {}", out_dir.display());
+    }
+
+    println!(
+        "napi addon: {} (build with `napi build --release --target <triple>` in          bindings/node during phase P3)",
+        root.join("target")
+            .join(profile)
+            .join("novelai_image_ffi_napi.dll")
+            .display()
+    );
+    Ok(())
+}
+
+fn fixtures() -> anyhow::Result<()> {
+    println!("Golden fixtures are generated from the pinned Python reference:\n");
+    println!("  NOVELAI_REFERENCE_ROOT=../NovelAI-Image-MCP \\");
+    println!("    uv run --directory ../NovelAI-Image-MCP/apps/server \\");
+    println!("    python \"$PWD/scripts/gen_fixtures.py\"\n");
+    println!("Then review `git diff fixtures/` — every change is a behavior change.");
     Ok(())
 }
 
