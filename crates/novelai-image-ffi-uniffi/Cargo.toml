@@ -13,7 +13,7 @@ crate-type = ["cdylib", "lib", "staticlib"]
 name = "novelai_image_sdk_ffi"
 
 [dependencies]
-novelai-image-sdk = { path = "../novelai-image-sdk", version = "0.1.6" }
+novelai-image-sdk = { path = "../novelai-image-sdk", version = "0.1.7" }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 uniffi = { workspace = true }

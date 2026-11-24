@@ -6,6 +6,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-11-25
+
+Publishes the PyPI wheel.
+
+### Fixed
+
+- The manylinux job left the unrepaird `linux_x86_64` wheel beside the
+  repaired one, so the upload glob shipped both and PyPI rejected the batch.
+  `auditwheel` now replaces `dist/`, and the dry run refuses to pass if a bare
+  `linux_*` wheel is present.
+
 ## [0.1.6] - 2026-11-25
 
 Publishes the PyPI wheel.

@@ -1,0 +1,5 @@
+{
+  "name": "NovelAI Image SDK v0.1.7",
+  "body": "Publishes the PyPI wheel, and the npm packages once the token can publish.\n\n## Fixed\n\n- The manylinux job kept both the original `linux_x86_64` wheel and the repaired `manylinux_2_28_x86_64` one, so the upload shipped both and PyPI rejected the batch. `auditwheel` now replaces `dist/`, and the dry run fails if a bare `linux_*` wheel is present.\n- The Maven publish set `MAVEN_CENTRAL_URL` even for real releases, which selected the unauthenticated local repository branch and produced a 401.\n\ncrates.io, Maven, npm and Swift published at earlier patch versions.\n",
+  "prerelease": false
+}
