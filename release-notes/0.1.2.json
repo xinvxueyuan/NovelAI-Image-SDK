@@ -1,0 +1,5 @@
+{
+  "name": "NovelAI Image SDK v0.1.2",
+  "body": "Completes the Windows and x86_64-macOS packaging. v0.1.1 published the crate, Maven and the Swift framework, and the macOS and Linux wheels; the Windows wheel and two npm targets still failed on shell portability.\n\n## Fixed\n\n- **Windows wheel and npm build**: multi-line `run:` blocks used POSIX syntax (`cp`, `for … done`, backslash continuations), which PowerShell rejects. They are now single commands or a checked-in Python script.\n- **Cross-target standard libraries**: the npm jobs never ran `rustup target add`, so compiling for a non-host triple failed with `can't find crate for core`.\n- **x86_64 macOS**: that target now builds on the native Intel runner instead of cross-compiling through BoringSSL's CMake build.\n\n## Packages\n\n| Package | Version |\n|---|---|\n| `novelai-image-sdk` (crates.io) | 0.1.2 |\n| `novelai-image-sdk` (PyPI) | 0.1.2 |\n| `@xinvxueyuan/novelai-image-sdk` (npm) | 0.1.2 |\n| `io.github.xinvxueyuan:novelai-image-sdk` (Maven) | 0.1.2 |\n| `NovelAIImageSDK` (Swift, macOS) | 0.1.2 |\n",
+  "prerelease": false
+}

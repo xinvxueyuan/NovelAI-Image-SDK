@@ -15,7 +15,7 @@ crate-type = ["cdylib"]
 futures-util = { workspace = true }
 napi = { workspace = true }
 napi-derive = { workspace = true }
-novelai-image-sdk = { path = "../novelai-image-sdk", version = "0.1.1" }
+novelai-image-sdk = { path = "../novelai-image-sdk", version = "0.1.2" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 

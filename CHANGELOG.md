@@ -6,6 +6,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-11-24
+
+Completes the Windows and x86_64-macOS packaging.
+
+### Fixed
+
+- Multi-line build steps used POSIX syntax (`cp`, `for … done`, backslash
+  continuations), which the Windows runner's PowerShell rejects. They are now
+  single commands or a checked-in Python script.
+- The npm jobs never ran `rustup target add`, so a non-host target failed with
+  `can't find crate for core`.
+- x86_64 macOS builds on the native Intel runner instead of cross-compiling
+  BoringSSL.
+
 ## [0.1.1] - 2026-11-24
 
 Completes the first release: the crate published as 0.1.0, and this patch

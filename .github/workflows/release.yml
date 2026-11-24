@@ -110,17 +110,13 @@ jobs:
         run: cargo run -p xtask -- bindings --language python --release
       - name: Build the wheel
         working-directory: bindings/python
+        # Everything here is Python rather than shell: `cp` and a `for` loop
+        # are not portable to the Windows runner's default shell.
         run: |
-          cp ../../LICENSE .
           python -m pip install --upgrade build setuptools setuptools-rust wheel
+          python -c "import shutil, pathlib; shutil.copy('../../LICENSE', 'LICENSE')"
           python -m build --wheel
-          # The extension is a ctypes-loaded cdylib, not a CPython module, so
-          # one wheel per platform serves every Python 3. setuptools-rust still
-          # tags it cpXY; rewrite the tag.
-          python -m pip install --quiet wheel
-          for wheel in dist/*.whl; do
-            python -m wheel tags "$wheel" --python-tag py3 --abi-tag none --remove
-          done
+          python scripts/retag_wheel.py
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: wheel-${{ matrix.os }}
@@ -160,7 +156,8 @@ jobs:
             target: x86_64-pc-windows-msvc
           - os: macos-26
             target: aarch64-apple-darwin
-          - os: macos-26
+          # Native x64, so BoringSSL is not cross-compiled.
+          - os: macos-26-intel
             target: x86_64-apple-darwin
     runs-on: ${{ matrix.os }}
     steps:
@@ -169,16 +166,18 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
+      - name: Install the cross target
+        shell: bash
+        run: rustup target add ${{ matrix.target }}
       - name: Install the napi CLI
         working-directory: bindings/node
         shell: bash
         run: npm install --no-save @napi-rs/cli@3
       - name: Build the addon
         working-directory: bindings/node
-        run: |
-          npx napi build --release --platform \
-            --manifest-path ../../crates/novelai-image-ffi-napi/Cargo.toml \
-            --output-dir . --target ${{ matrix.target }}
+        # One line on purpose: a backslash continuation is not portable
+        # across the default shells of the three runners.
+        run: npx napi build --release --platform --manifest-path ../../crates/novelai-image-ffi-napi/Cargo.toml --output-dir . --target ${{ matrix.target }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: node-${{ matrix.target }}
