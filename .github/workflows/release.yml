@@ -114,6 +114,13 @@ jobs:
           cp ../../LICENSE .
           python -m pip install --upgrade build setuptools setuptools-rust wheel
           python -m build --wheel
+          # The extension is a ctypes-loaded cdylib, not a CPython module, so
+          # one wheel per platform serves every Python 3. setuptools-rust still
+          # tags it cpXY; rewrite the tag.
+          python -m pip install --quiet wheel
+          for wheel in dist/*.whl; do
+            python -m wheel tags "$wheel" --python-tag py3 --abi-tag none --remove
+          done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: wheel-${{ matrix.os }}
@@ -164,6 +171,7 @@ jobs:
           node-version: 22
       - name: Install the napi CLI
         working-directory: bindings/node
+        shell: bash
         run: npm install --no-save @napi-rs/cli@3
       - name: Build the addon
         working-directory: bindings/node
@@ -197,6 +205,7 @@ jobs:
           merge-multiple: true
       - name: Install the napi CLI
         working-directory: bindings/node
+        shell: bash
         run: npm install --no-save @napi-rs/cli@3
       - name: Build the platform packages
         working-directory: bindings/node
@@ -305,22 +314,24 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-rust
-      - name: Install the iOS target
-        run: rustup target add aarch64-apple-ios aarch64-apple-ios-sim
+      - name: Note the current scope
+        run: |
+          echo "Building the macOS XCFramework only. iOS needs BoringSSL"
+          echo "cross-compiled for the iOS SDKs, which btls-sys does not do yet."
       - name: Generate the Swift binding
         run: cargo run -p xtask -- bindings --language swift --release
       - name: Build the static libraries
         run: |
           # macOS (arm64 + x86_64) for the SwiftPM binary target, plus iOS for
           # applications that embed the SDK.
-          for target in aarch64-apple-darwin x86_64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim; do
+          for target in aarch64-apple-darwin x86_64-apple-darwin; do
             rustup target add "$target"
             cargo build -p novelai-image-ffi-uniffi --release --target "$target"
           done
           lipo -create             target/aarch64-apple-darwin/release/libnovelai_image_sdk_ffi.a             target/x86_64-apple-darwin/release/libnovelai_image_sdk_ffi.a             -output target/universal-macos.a
       - name: Assemble the XCFramework
         run: |
-          xcodebuild -create-xcframework             -library target/universal-macos.a             -headers bindings/swift/generated             -library target/aarch64-apple-ios/release/libnovelai_image_sdk_ffi.a             -headers bindings/swift/generated             -library target/aarch64-apple-ios-sim/release/libnovelai_image_sdk_ffi.a             -headers bindings/swift/generated             -output bindings/swift/NovelAIImageSDK.xcframework
+          xcodebuild -create-xcframework             -library target/universal-macos.a             -headers bindings/swift/generated             -output bindings/swift/NovelAIImageSDK.xcframework
           cd bindings/swift && zip -qr NovelAIImageSDK.xcframework.zip NovelAIImageSDK.xcframework
       - name: Print the checksum for Package.swift
         run: swift package compute-checksum bindings/swift/NovelAIImageSDK.xcframework.zip

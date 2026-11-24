@@ -34,6 +34,10 @@ msgpack = "msgpack"
 hed = "hed"
 # Deliberate misspelling in a test that asserts unknown fields are rejected.
 widht = "widht"
+# Tool names for macOS/Linux wheel repair.
+delocate = "delocate"
+delvewheel = "delvewheel"
+auditwheel = "auditwheel"
 
 [default.extend-identifiers]
 # Wire and crate spellings that are not English words.

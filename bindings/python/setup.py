@@ -68,8 +68,24 @@ def place_library(build_lib: Path, announce=None) -> None:
         )
 
 
-class BdistWheel(bdist_wheel):
-    """Place the cdylib inside the package once build_ext has run."""
+class CompileWheel(bdist_wheel):
+    """Place the cdylib inside the package once build_ext has run.
+
+    Also declares the wheel platform-independent: the extension is a plain
+    cdylib loaded through ctypes, not a CPython extension module, so one wheel
+    per OS/arch works for every Python 3 version. That is what lets
+    \`auditwheel\`/\`delocate\`/\`delvewheel\` retag it (see the release workflow).
+    """
+
+    def finalize_options(self) -> None:
+        super().finalize_options()
+        # No CPython ABI dependency (the module is generated Python that loads
+        # a cdylib through ctypes), but the wheel *is* platform-specific.
+        # `py3-none-<platform>` keeps one wheel valid for every Python 3.
+        self.root_is_pure = False
+        self.py_limited_api = False
+        if not self.plat_name:
+            self.plat_name = self.get_platform()
 
     def run(self) -> None:
         self.run_command("build_ext")
@@ -89,6 +105,6 @@ setup(
             debug=False,
         )
     ],
-    cmdclass={"bdist_wheel": BdistWheel},
+    cmdclass={"bdist_wheel": CompileWheel},
     zip_safe=False,
 )
