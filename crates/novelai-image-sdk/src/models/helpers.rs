@@ -2,7 +2,7 @@
 //!
 //! Port of the helper half of `novelai_image_mcp.nai.models`.
 
-use rand::Rng;
+use rand::{Rng, RngExt};
 use unicode_casefold::UnicodeCaseFold;
 
 use crate::error::Error;

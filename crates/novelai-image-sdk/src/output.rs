@@ -8,7 +8,7 @@
 
 use std::path::{Path, PathBuf};
 
-use rand::Rng;
+use rand::RngExt;
 use time::OffsetDateTime;
 
 use crate::error::Error;
