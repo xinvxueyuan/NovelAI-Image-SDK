@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-11-24
+
+Publishes the npm packages.
+
+### Fixed
+
+- \`napi artifacts\` requires a separate \`artifacts/\` directory the release
+  layout does not use; the addons are now routed into their platform packages
+  by filename suffix, so a Windows binary cannot land in the macOS package.
+
 ## [0.1.2] - 2026-11-24
 
 Completes the Windows and x86_64-macOS packaging.

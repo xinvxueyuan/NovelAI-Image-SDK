@@ -208,7 +208,25 @@ jobs:
         run: npm install --no-save @napi-rs/cli@3
       - name: Build the platform packages
         working-directory: bindings/node
-        run: npx napi create-npm-dirs && npx napi artifacts
+        # `create-npm-dirs` reads the `.node` files beside package.json (the
+        # download step put them there); `napi artifacts` expects a separate
+        # `artifacts/` directory that this layout does not use.
+        run: |
+          npx napi create-npm-dirs
+          # Each downloaded addon is named `<binary>.<platformArchABI>.node`.
+          # Move it into the matching platform package by that suffix, so a
+          # Windows binary can never land in the macOS package.
+          for addon in *.node; do
+            suffix="${addon#*.}"          # drop the binary name
+            suffix="${suffix%.node}"      # drop the extension
+            if [ -d "npm/$suffix" ]; then
+              mv "$addon" "npm/$suffix/"
+            else
+              echo "no platform package for $addon" >&2
+              exit 1
+            fi
+          done
+          ls -R npm | head -30
       - name: Publish
         working-directory: bindings/node
         env:

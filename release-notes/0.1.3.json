@@ -1,0 +1,5 @@
+{
+  "name": "NovelAI Image SDK v0.1.3",
+  "body": "Publishes the npm packages, which v0.1.2 built but could not upload.\n\n## Fixed\n\n- The npm publish job called `napi artifacts`, which expects a separate `artifacts/` directory this layout does not use. The addons are now routed into their platform packages by filename suffix, so a Windows binary cannot end up in the macOS package.\n\nEvery other registry published at 0.1.2; this release differs only in the npm packages.\n",
+  "prerelease": false
+}
