@@ -1,0 +1,48 @@
+[project]
+name = "novelai-image-sdk"
+# Kept in step with Cargo.toml by `cargo xtask sync-versions`.
+version = "0.1.0"
+description = "NovelAI image-generation SDK with Chrome-fingerprinted transport"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = ["api-client", "diffusion", "image-generation", "novelai", "sd"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Rust",
+  "Topic :: Multimedia :: Graphics",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/xinvxueyuan/NovelAI-Image-SDK"
+Issues = "https://github.com/xinvxueyuan/NovelAI-Image-SDK/issues"
+Repository = "https://github.com/xinvxueyuan/NovelAI-Image-SDK"
+
+[build-system]
+requires = ["setuptools>=77", "setuptools-rust>=1.10", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+# The generated UniFFI module and the cdylib land side by side in this package.
+packages = ["novelai_image_sdk"]
+
+[tool.setuptools.package-dir]
+novelai_image_sdk = "novelai_image_sdk"
+
+[tool.setuptools.package-data]
+novelai_image_sdk = ["*.so", "*.dylib", "*.dll"]
+
+[tool.setuptools-rust]
+
+# Build only the cdylib; the binding module is generated from it first.
+[[tool.setuptools-rust.ext-modules]]
+target = "novelai_image_sdk_ffi"
+path = "../../crates/novelai-image-ffi-uniffi/Cargo.toml"
+binding = "NoBinding"

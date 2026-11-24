@@ -6,6 +6,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-24
+
+First release: the Rust core and the Python, TypeScript, Kotlin and Swift
+bindings, described in [`release-notes/0.1.0.json`](release-notes/0.1.0.json).
+
 ### Added
 
 - `novelai-image-sdk` Rust core: request validation and normalization
@@ -20,9 +25,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `blocking` feature with a synchronous facade for Go and C++ bindings.
 - Golden-fixture parity tests generated from the reference Python
   implementation: byte-identical payloads across 21 model/action/preset cases,
-  identical constants, Argon2 access keys, and identical error messages.
+  identical constants, Argon2 access keys, identical Anlas estimates and
+  identical error messages.
 - Live transport spike (`cargo xtask live-spike`) confirming the Chrome
   emulation reaches NovelAI's origin through Cloudflare.
+- Bindings: Python (`novelai-image-sdk` on PyPI), TypeScript/Node
+  (`@xinvxueyuan/novelai-image-sdk`), Kotlin/JVM
+  (`io.github.xinvxueyuan:novelai-image-sdk`) and Swift (`NovelAIImageSDK`).
+- Repository gate: `cargo xtask check` runs fmt, clippy, nextest, cargo-deny,
+  REUSE, typos, tombi, the file-length cap and prek hooks, and CI runs the same
+  set on the newest Linux, Windows and macOS runners.
+
+### Known limitations
+
+- Streaming is buffered in the bindings; only the Rust core exposes the
+  incremental `Stream`.
+- Go, C# and C++ bindings are planned for v0.2.
+- The browser/WASM target is out of scope: the transport depends on controlling
+  the TLS ClientHello.
 
 ## [0.0.0] - 2026-11-23
 

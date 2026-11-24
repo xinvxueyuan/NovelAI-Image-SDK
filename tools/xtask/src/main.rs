@@ -49,6 +49,18 @@ enum Command {
     /// TOML lint, file length). CI runs the same set; this is for a pre-push
     /// sanity check.
     Check,
+
+    /// Write the workspace version into every manifest that carries one.
+    ///
+    /// `Cargo.toml`'s `workspace.package.version` is the single source of
+    /// truth; the Python, npm, Kotlin and Swift manifests are generated from
+    /// it. `--check` verifies instead of writing, which is what the release
+    /// workflow runs on the tagged commit.
+    SyncVersions {
+        /// Fail when a manifest disagrees, without writing anything.
+        #[arg(long)]
+        check: bool,
+    },
 }
 
 #[tokio::main]
@@ -58,6 +70,7 @@ async fn main() -> anyhow::Result<()> {
         Command::Bindings { language, release } => bindings(language, release)?,
         Command::Fixtures => fixtures()?,
         Command::Check => check()?,
+        Command::SyncVersions { check } => sync_versions(check)?,
     }
     Ok(())
 }
@@ -162,6 +175,94 @@ fn bindings(language: Option<String>, release: bool) -> anyhow::Result<()> {
             .join("novelai_image_ffi_napi.dll")
             .display()
     );
+    Ok(())
+}
+
+/// The workspace version, read from the root manifest.
+fn workspace_version(root: &Path) -> anyhow::Result<String> {
+    let manifest = std::fs::read_to_string(root.join("Cargo.toml"))?;
+    let in_workspace_package = manifest
+        .split("[workspace.package]")
+        .nth(1)
+        .context("no [workspace.package] section in Cargo.toml")?;
+    for line in in_workspace_package.lines() {
+        let line = line.trim();
+        if let Some(rest) = line.strip_prefix("version = ") {
+            return Ok(rest.trim().trim_matches('"').to_owned());
+        }
+        if line.starts_with('[') {
+            break;
+        }
+    }
+    anyhow::bail!("no version in [workspace.package]")
+}
+
+/// Replace a version string in a manifest, reporting whether it changed.
+fn patch_version(path: &Path, pattern: &str, version: &str) -> anyhow::Result<Option<String>> {
+    let text =
+        std::fs::read_to_string(path).with_context(|| format!("cannot read {}", path.display()))?;
+    let updated = text.replace(pattern, &pattern.replace("{version}", version));
+    if updated == text {
+        return Ok(None);
+    }
+    Ok(Some(updated))
+}
+
+fn sync_versions(check_only: bool) -> anyhow::Result<()> {
+    let root = repo_root()?;
+    let version = workspace_version(&root)?;
+    println!("workspace version: {version}");
+
+    // (path, the exact line that carries the version, human name)
+    let targets: &[(&str, &str, &str)] = &[
+        (
+            "bindings/python/pyproject.toml",
+            "version = \"{version}\"",
+            "python",
+        ),
+        (
+            "bindings/node/package.json",
+            "\"version\": \"{version}\"",
+            "npm",
+        ),
+        (
+            "bindings/kotlin/build.gradle.kts",
+            "version = \"{version}\"",
+            "kotlin",
+        ),
+        (
+            "bindings/swift/Package.swift",
+            "releases/download/v{version}/",
+            "swift",
+        ),
+    ];
+
+    let mut stale = Vec::new();
+    for (relative, pattern, name) in targets {
+        let path = root.join(relative);
+        if !path.exists() {
+            println!("  {name}: {} does not exist yet, skipped", path.display());
+            continue;
+        }
+        let Some(updated) = patch_version(&path, pattern, &version)? else {
+            println!("  {name}: up to date");
+            continue;
+        };
+        stale.push(*name);
+        if check_only {
+            println!("  {name}: stale");
+            continue;
+        }
+        std::fs::write(&path, updated)?;
+        println!("  {name}: updated");
+    }
+
+    if check_only && !stale.is_empty() {
+        anyhow::bail!(
+            "version mismatch in: {} — run `cargo xtask sync-versions`",
+            stale.join(", ")
+        );
+    }
     Ok(())
 }
 

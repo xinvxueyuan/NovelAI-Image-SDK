@@ -12,6 +12,31 @@
 
 version = 3
 
+# Third-party trees and generated build outputs.
+#
+# NOTE: `reuse lint` walks the whole working tree, including untracked files,
+# so an installed `node_modules/` fails the check no matter what this file
+# says. CI runs the REUSE job before installing any Node dependency; locally,
+# lint before `npm install` or remove `bindings/node/node_modules` first.
+[[annotations]]
+path = [
+  "bindings/node/node_modules",
+  "bindings/node/*.node",
+  "third_party/**",
+  "**/target/**",
+  "bindings/python/dist/**",
+  "bindings/python/build/**",
+  "bindings/python/*.egg-info/**",
+  "bindings/kotlin/generated/**",
+  "bindings/swift/generated/**",
+  "bindings/python/generated/**",
+  ".venv-packaging/**",
+  ".venv-wheel-test/**",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 NovelAI Image SDK contributors"
+SPDX-License-Identifier = "CC0-1.0"
+
 [[annotations]]
 path = [
   "**/*.rs",
@@ -48,6 +73,9 @@ path = [
   ".editorconfig",
   ".gitattributes",
   "prek.toml",
+  "bindings/kotlin/build.gradle.kts",
+  "bindings/kotlin/settings.gradle.kts",
+  "*.node",
   "clippy.toml",
   "tombi.toml",
   "_typos.toml",

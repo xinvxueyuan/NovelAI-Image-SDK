@@ -1,0 +1,41 @@
+{
+  "name": "@xinvxueyuan/novelai-image-sdk",
+  "version": "0.1.0",
+  "description": "NovelAI image-generation SDK with Chrome-fingerprinted transport",
+  "license": "MIT",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.17"
+  },
+  "napi": {
+    "name": "novelai_image_ffi_napi",
+    "triples": {
+      "defaults": true
+    }
+  },
+  "keywords": [
+    "novelai",
+    "image-generation",
+    "diffusion",
+    "api-client"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xinvxueyuan/NovelAI-Image-SDK.git"
+  },
+  "scripts": {
+    "build": "napi build --release",
+    "prepublishOnly": "napi prepublish -t npm",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^3.0.0"
+  }
+}

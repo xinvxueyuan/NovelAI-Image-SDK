@@ -38,3 +38,20 @@ third_party/novelai-image-mcp/node_modules/
 .githooks/pre-commit
 .githooks/pre-push
 .githooks/commit-msg
+
+# Packaging outputs
+bindings/python/dist/
+bindings/python/build/
+bindings/python/*.egg-info/
+bindings/python/novelai_image_sdk/novelai_image_sdk_ffi.py
+bindings/python/novelai_image_sdk/*.dll
+bindings/python/novelai_image_sdk/*.so
+bindings/python/novelai_image_sdk/*.dylib
+bindings/python/LICENSE
+bindings/node/node_modules/
+bindings/node/*.node
+bindings/node/index.d.ts
+bindings/node/package-lock.json
+bindings/node/target/
+.venv-packaging/
+.venv-wheel-test/

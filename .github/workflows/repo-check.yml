@@ -26,6 +26,8 @@ jobs:
           python-version: "3.13"
 
       - name: Check REUSE compliance
+        # `reuse lint` walks the working tree, so this must run before any job
+        # that installs Node dependencies into the checkout.
         run: |
           python -m pip install --quiet "reuse[charset-normalizer]==6.3.0"
           reuse lint
