@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-11-25
+
+### Fixed
+
+- `cargo xtask sync-versions` matched a literal `{version}` template, so it
+  never rewrote a manifest and always reported "up to date". PyPI received a
+  0.1.0 wheel during the v0.1.7 release because of it. The template is now a
+  regex with the version as a capture group, every match is replaced, and the
+  npm platform dependencies are included.
+
 ## [0.1.7] - 2026-11-25
 
 Publishes the PyPI wheel.

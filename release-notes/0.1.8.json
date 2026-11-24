@@ -1,0 +1,5 @@
+{
+  "name": "NovelAI Image SDK v0.1.8",
+  "body": "Fixes the version stamping that made the previous release publish under the wrong number.\n\n## Fixed\n\n- `cargo xtask sync-versions` reported every manifest as up to date while leaving it on the old version: it matched a literal `{version}` template with `str::replace`, which can never match. PyPI therefore received a `0.1.0` wheel during the v0.1.7 release. The pattern is now compiled with the version slot as a capture group, every match is rewritten, and the npm platform dependencies are covered too.\n\n## Published by this release\n\n| Registry | Version |\n|---|---|\n| crates.io | 0.1.8 |\n| PyPI | 0.1.8 |\n| Maven Central | 0.1.8 |\n| GitHub release (Swift XCFramework) | 0.1.8 |\n\nnpm remains blocked on the token: publishing requires a one-time password, so an automation token that bypasses 2FA is needed.\n",
+  "prerelease": false
+}

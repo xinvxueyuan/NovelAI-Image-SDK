@@ -14,7 +14,7 @@ plugins {
 
 group = "io.github.xinvxueyuan"
 // Kept in step with Cargo.toml by `cargo xtask sync-versions`.
-version = "0.1.7"
+version = "0.1.8"
 
 repositories {
     mavenCentral()

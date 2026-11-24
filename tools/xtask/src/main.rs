@@ -9,7 +9,6 @@ use std::process::Command as Proc;
 
 use anyhow::{Context, bail};
 use clap::{Parser, Subcommand};
-use regex::Regex;
 
 #[derive(Parser)]
 #[command(name = "xtask", about = "NovelAI-Image-SDK repo tasks")]
@@ -71,12 +70,12 @@ async fn main() -> anyhow::Result<()> {
         Command::Bindings { language, release } => bindings(language, release)?,
         Command::Fixtures => fixtures()?,
         Command::Check => check()?,
-        Command::SyncVersions { check } => sync_versions(check)?,
+        Command::SyncVersions { check } => versions::sync_versions(check)?,
     }
     Ok(())
 }
 
-fn repo_root() -> anyhow::Result<PathBuf> {
+pub(crate) fn repo_root() -> anyhow::Result<PathBuf> {
     // xtask lives at <root>/tools/xtask
     let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
     manifest
@@ -197,140 +196,7 @@ fn bindings(language: Option<String>, release: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// The workspace version, read from the root manifest.
-fn workspace_version(root: &Path) -> anyhow::Result<String> {
-    let manifest = std::fs::read_to_string(root.join("Cargo.toml"))?;
-    let in_workspace_package = manifest
-        .split("[workspace.package]")
-        .nth(1)
-        .context("no [workspace.package] section in Cargo.toml")?;
-    for line in in_workspace_package.lines() {
-        let line = line.trim();
-        if let Some(rest) = line.strip_prefix("version = ") {
-            return Ok(rest.trim().trim_matches('"').to_owned());
-        }
-        if line.starts_with('[') {
-            break;
-        }
-    }
-    anyhow::bail!("no version in [workspace.package]")
-}
-
-/// Replace a version string in a manifest, reporting whether it changed.
-/// Replace the version captured by `pattern`'s `{version}` slot.
-///
-/// `pattern` must contain exactly one `{version}`; it is compiled as a regex
-/// where that slot matches any version-shaped string. A plain `str::replace`
-/// cannot work here: the pattern is a template, not the literal text, so
-/// nothing would ever match.
-fn patch_version(path: &Path, pattern: &str, version: &str) -> anyhow::Result<Option<String>> {
-    let text =
-        std::fs::read_to_string(path).with_context(|| format!("cannot read {}", path.display()))?;
-
-    let mut regex = String::new();
-    for (index, part) in pattern.split("{version}").enumerate() {
-        if index > 0 {
-            // Version-shaped: digits, dots, optionally a pre-release suffix.
-            regex.push_str(r"([0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)");
-        }
-        regex.push_str(&regex_escape(part));
-    }
-
-    let re = Regex::new(&regex).with_context(|| format!("invalid pattern {pattern}"))?;
-    let Some(captures) = re.captures(&text) else {
-        return Ok(None);
-    };
-    let Some(current) = captures.get(1) else {
-        return Ok(None);
-    };
-    if current.as_str() == version {
-        return Ok(None);
-    }
-    // Replace only the captured version; the surrounding text (a JSON key, a
-    // TOML assignment) must survive untouched.
-    let updated = format!(
-        "{}{}{}",
-        &text[..current.start()],
-        version,
-        &text[current.end()..]
-    );
-    Ok(Some(updated))
-}
-
-/// Escape the literal parts of a regex template.
-fn regex_escape(text: &str) -> String {
-    let mut out = String::with_capacity(text.len());
-    for character in text.chars() {
-        if r"\\.^$|?*+()[]{}".contains(character) {
-            out.push('\\');
-        }
-        out.push(character);
-    }
-    out
-}
-
-fn sync_versions(check_only: bool) -> anyhow::Result<()> {
-    let root = repo_root()?;
-    let version = workspace_version(&root)?;
-    println!("workspace version: {version}");
-
-    // (path, the exact line that carries the version, human name)
-    let targets: &[(&str, &str, &str)] = &[
-        (
-            "bindings/python/pyproject.toml",
-            "version = \"{version}\"",
-            "python",
-        ),
-        (
-            "bindings/node/package.json",
-            "\"version\": \"{version}\"",
-            "npm",
-        ),
-        (
-            "bindings/node/package.json",
-            "\"@xinvxueyuan/novelai-image-sdk-{platform}\": \"{version}\"",
-            "npm-platform-deps",
-        ),
-        (
-            "bindings/kotlin/build.gradle.kts",
-            "version = \"{version}\"",
-            "kotlin",
-        ),
-        (
-            "bindings/swift/Package.swift",
-            "releases/download/v{version}/",
-            "swift",
-        ),
-    ];
-
-    let mut stale = Vec::new();
-    for (relative, pattern, name) in targets {
-        let path = root.join(relative);
-        if !path.exists() {
-            println!("  {name}: {} does not exist yet, skipped", path.display());
-            continue;
-        }
-        let Some(updated) = patch_version(&path, pattern, &version)? else {
-            println!("  {name}: up to date");
-            continue;
-        };
-        stale.push(*name);
-        if check_only {
-            println!("  {name}: stale");
-            continue;
-        }
-        std::fs::write(&path, updated)?;
-        println!("  {name}: updated");
-    }
-
-    if check_only && !stale.is_empty() {
-        anyhow::bail!(
-            "version mismatch in: {} — run `cargo xtask sync-versions`",
-            stale.join(", ")
-        );
-    }
-    Ok(())
-}
+mod versions;
 
 fn check() -> anyhow::Result<()> {
     let root = repo_root()?;

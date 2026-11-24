@@ -1,6 +1,6 @@
 {
   "name": "@xinvxueyuan/novelai-image-sdk",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "NovelAI image-generation SDK with Chrome-fingerprinted transport",
   "license": "MIT",
   "main": "index.js",
@@ -15,11 +15,11 @@
     "node": ">=20.17"
   },
   "optionalDependencies": {
-    "@xinvxueyuan/novelai-image-sdk-win32-x64-msvc": "0.1.7",
-    "@xinvxueyuan/novelai-image-sdk-linux-x64-gnu": "0.1.7",
-    "@xinvxueyuan/novelai-image-sdk-linux-arm64-gnu": "0.1.7",
-    "@xinvxueyuan/novelai-image-sdk-darwin-arm64": "0.1.7",
-    "@xinvxueyuan/novelai-image-sdk-darwin-x64": "0.1.7"
+    "@xinvxueyuan/novelai-image-sdk-win32-x64-msvc": "0.1.8",
+    "@xinvxueyuan/novelai-image-sdk-linux-x64-gnu": "0.1.8",
+    "@xinvxueyuan/novelai-image-sdk-linux-arm64-gnu": "0.1.8",
+    "@xinvxueyuan/novelai-image-sdk-darwin-arm64": "0.1.8",
+    "@xinvxueyuan/novelai-image-sdk-darwin-x64": "0.1.8"
   },
   "napi": {
     "binaryName": "novelai_image_ffi_napi",
