@@ -1,0 +1,5 @@
+{
+  "name": "NovelAI Image SDK v0.1.6",
+  "body": "Publishes the PyPI wheel.\n\n## Fixed\n\n- The manylinux image does not put a Python interpreter on `PATH`; they live under `/opt/python`. The build step resolves the interpreter itself, since `GITHUB_ENV` changes do not reach inside the container. The wheel now builds against glibc 2.28 and `auditwheel` derives the correct manylinux tag from its ELF symbols.\n\ncrates.io, Maven, npm and the Swift framework published at earlier patch versions.\n",
+  "prerelease": false
+}

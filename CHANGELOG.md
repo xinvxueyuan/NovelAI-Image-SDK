@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-11-25
+
+Publishes the PyPI wheel.
+
+### Fixed
+
+- The manylinux image has no interpreter on `PATH`; it ships them under
+  `/opt/python`. The build step resolves the path itself, because
+  `GITHUB_ENV` changes do not reach inside the container.
+
 ## [0.1.5] - 2026-11-25
 
 Publishes the PyPI wheel.

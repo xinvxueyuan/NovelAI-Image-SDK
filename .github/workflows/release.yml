@@ -137,23 +137,30 @@ jobs:
           python-version: "3.13"
       - name: Generate the binding module
         run: cargo run -p xtask -- bindings --language python --release
-      - name: Select the container interpreter
-        if: matrix.container != ''
-        run: |
-          PYBIN=$(ls -d /opt/python/cp313-cp313/bin)
-          echo "PATH=$PYBIN:$PATH" >> "$GITHUB_ENV"
       - name: Build the wheel
         working-directory: bindings/python
-        # Python rather than shell throughout: `cp` and a `for` loop are not
-        # portable to the Windows runner's default shell.
+        shell: bash
+        # Bash on every runner so the same POSIX script works; the commands are
+        # still `python …` rather than `cp`/`for`, which is what the Windows
+        # failure earlier was about.
+        #
+        # The manylinux image does not put an interpreter on PATH; it ships
+        # them under /opt/python. `$PYTHON` resolves once here so the same
+        # commands work in both environments (GITHUB_ENV does not reach inside
+        # the container).
         run: |
-          python -m pip install --upgrade build setuptools setuptools-rust wheel
-          python -c "import shutil, pathlib; shutil.copy('../../LICENSE', 'LICENSE')"
-          python -m build --wheel
-          python scripts/retag_wheel.py
+          PYTHON=python
+          if [ -d /opt/python/cp313-cp313/bin ]; then
+            PYTHON=/opt/python/cp313-cp313/bin/python
+          fi
+          "$PYTHON" -m pip install --upgrade build setuptools setuptools-rust wheel
+          "$PYTHON" -c "import shutil; shutil.copy('../../LICENSE', 'LICENSE')"
+          "$PYTHON" -m build --wheel
+          "$PYTHON" scripts/retag_wheel.py
       - name: Repair the Linux wheel
         if: matrix.container != ''
         working-directory: bindings/python
+        shell: bash
         # Renaming the tag is not enough: PyPI rejects `linux_x86_64`, and a
         # wheel claiming manylinux must actually link an older glibc than the
         # ubuntu-26.04 runner ships. auditwheel inspects the ELF symbols and
@@ -161,9 +168,10 @@ jobs:
         # than any long-term-support baseline provides, which is the signal to
         # move the build into a manylinux container.
         run: |
-          python -m pip install --quiet auditwheel
+          PYTHON=/opt/python/cp313-cp313/bin/python
+          "$PYTHON" -m pip install --quiet auditwheel
           rm -f dist/*manylinux*.whl
-          python -m auditwheel repair --wheel-dir dist dist/*.whl
+          "$PYTHON" -m auditwheel repair --wheel-dir dist dist/*.whl
           ls dist/
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
