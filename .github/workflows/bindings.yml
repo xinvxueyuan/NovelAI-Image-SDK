@@ -44,6 +44,12 @@ jobs:
           else
             brew install cmake nasm
           fi
+      - name: Install a JDK (Kotlin)
+        if: matrix.lang == 'kotlin'
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: "17"
       - name: Generate bindings
         run: cargo run -p xtask -- bindings --language ${{ matrix.lang }}
       - name: Compile and smoke-test (Python)
@@ -54,18 +60,21 @@ jobs:
           pip install pytest
           cp target/debug/libnovelai_image_sdk_ffi.so bindings/python/generated/ 2>/dev/null || true
           python -c "import sys; sys.path.insert(0, 'bindings/python/generated'); import novelai_image_sdk_ffi as sdk; assert len(sdk.list_models()) == 15; assert sdk.derive_access_key('user@example.com', 'hunter2')"
-      - name: Smoke-test (Kotlin)
+      - name: Compile the binding (Kotlin)
         if: matrix.lang == 'kotlin'
+        working-directory: bindings/kotlin
         run: |
-          # Compilation-only gate until the Gradle wrapper lands in phase P3.
-          test -f bindings/kotlin/generated/io/github/xinvxueyuan/novelai/image/sdk/novelai_image_sdk_ffi.kt
-          grep -q "suspend fun \`generate\`" bindings/kotlin/generated/io/github/xinvxueyuan/novelai/image/sdk/novelai_image_sdk_ffi.kt
-      - name: Smoke-test (Swift)
+          # Build the JAR, not just the sources: an incompatible generator or
+          # a missing dependency only shows up when the compiler runs.
+          gradle build --no-daemon
+      - name: Type-check the binding (Swift)
         if: matrix.lang == 'swift'
+        working-directory: bindings/swift
         run: |
-          test -f bindings/swift/generated/NovelAIImageSDK.swift
-          test -f bindings/swift/generated/NovelAIImageSDKFFI.h
-          grep -q "NovelAiClient" bindings/swift/generated/NovelAIImageSDK.swift
+          # `swift build` needs the binary target, which only exists after a
+          # release, so compile the generated Swift against the emitted C
+          # header directly.
+          swiftc -typecheck generated/NovelAIImageSDK.swift             -I generated/NovelAIImageSDKFFI             -Xcc -fmodule-map-file=generated/NovelAIImageSDKFFI/module.modulemap
 
   napi:
     name: napi (Node.js)
