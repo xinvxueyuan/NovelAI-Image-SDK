@@ -9,7 +9,7 @@ permissions:
 jobs:
   guardrails:
     name: Guardrails
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
       - name: Check out workspace
@@ -40,7 +40,7 @@ jobs:
 
   dependencies:
     name: Rust dependency policy
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
       - name: Check out workspace
@@ -64,7 +64,7 @@ jobs:
 
   hooks:
     name: Hooks
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
       - name: Check out workspace

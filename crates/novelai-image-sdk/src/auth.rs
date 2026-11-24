@@ -7,7 +7,7 @@ use std::fmt;
 use argon2::{Algorithm, Argon2, Params, Version};
 use base64::Engine as _;
 use blake2::Digest;
-use rand::Rng;
+use rand::RngExt;
 use time::OffsetDateTime;
 
 use crate::error::Error;
