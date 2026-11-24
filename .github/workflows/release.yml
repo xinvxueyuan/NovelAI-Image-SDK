@@ -10,8 +10,12 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Version to release (e.g. 0.1.0)
+        description: Version to build (e.g. 0.1.0)
         required: true
+      dry_run:
+        description: Build and verify every artifact, publish nothing
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -26,6 +30,7 @@ jobs:
     runs-on: ubuntu-26.04
     outputs:
       version: ${{ steps.version.outputs.version }}
+      dry_run: ${{ steps.version.outputs.dry_run }}
     steps:
       - name: Check out workspace
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -50,11 +55,19 @@ jobs:
             exit 1
           fi
           echo "version=$tag" >> "$GITHUB_OUTPUT"
+          # A tag push always publishes; a manual run publishes only when the
+          # caller turned dry-run off.
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "dry_run=${{ inputs.dry_run }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "dry_run=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Manifests must agree
         run: cargo run -p xtask -- sync-versions --check
 
       - name: The tag must point at a commit on main
+        if: github.event_name != 'workflow_dispatch'
         run: |
           git fetch --quiet origin main
           if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
@@ -63,6 +76,7 @@ jobs:
           fi
 
       - name: Release notes must exist
+        if: steps.version.outputs.dry_run == 'false'
         run: test -f "release-notes/${{ steps.version.outputs.version }}.json"
 
       - name: The changelog must have a section for this version
@@ -87,7 +101,10 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-rust
+      - name: Verify the crate packages
+        run: cargo publish -p novelai-image-sdk --locked --dry-run
       - name: Publish
+        if: needs.validate.outputs.dry_run == 'false'
         run: cargo publish -p novelai-image-sdk --locked
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
@@ -192,7 +209,12 @@ jobs:
           pattern: wheel-*
           path: dist
           merge-multiple: true
+      - name: Check the wheels
+        run: |
+          python -m pip install --quiet twine
+          python -m twine check dist/*
       - name: Publish to PyPI
+        if: needs.validate.outputs.dry_run == 'false'
         uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         with:
           packages-dir: dist
@@ -283,7 +305,18 @@ jobs:
             fi
           done
           ls -R npm | head -30
+      - name: Pack the tarballs
+        working-directory: bindings/node
+        run: |
+          # `npm pack` exercises the same manifest resolution as publish and
+          # writes a tarball we can inspect.
+          for dir in npm/*/; do
+            npm pack "$dir" --pack-destination /tmp/npm-packs
+          done
+          npm pack --pack-destination /tmp/npm-packs
+          ls -la /tmp/npm-packs
       - name: Publish
+        if: needs.validate.outputs.dry_run == 'false'
         working-directory: bindings/node
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -374,11 +407,15 @@ jobs:
           MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
           # Central requires a detached signature on every artifact. The same
-          # key that signs commits signs the JAR, so an existing secret covers
-          # both once it is added.
+          # key that signs commits signs the JAR.
           SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
           SIGNING_PASSWORD: ${{ secrets.GPG_SIGNING_PASSWORD }}
+          # A dry run publishes to a local directory instead of Central.
+          MAVEN_CENTRAL_URL: ${{ needs.validate.outputs.dry_run == 'true' && format('file://{0}/maven-dry-run', github.workspace) || 'https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/' }}
         run: gradle publish --no-daemon
+      - name: List the published artifacts
+        working-directory: bindings/kotlin
+        run: find build/repo maven-dry-run -name "*.jar" -o -name "*.pom" 2>/dev/null | head -20 || true
 
   swift:
     name: Swift XCFramework
@@ -427,6 +464,7 @@ jobs:
         with:
           path: artifacts
       - name: Create the release
+        if: needs.validate.outputs.dry_run == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

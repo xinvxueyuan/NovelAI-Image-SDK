@@ -58,5 +58,6 @@ bindings/node/target/
 bindings/kotlin/build/
 # Native libraries are build outputs; the release job supplies them.
 bindings/kotlin/src/main/resources/*/
+maven-dry-run/
 bindings/kotlin/.gradle/
 bindings/kotlin/.kotlin/

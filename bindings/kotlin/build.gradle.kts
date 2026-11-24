@@ -92,18 +92,25 @@ publishing {
         }
     }
     repositories {
-        // The release workflow sets these for Maven Central.
-        maven {
-            name = "central"
-            // Central Portal's OSSRH-compatible endpoint. The old
-            // `s01.oss.sonatype.org` host is retired.
-            url = uri(
-                System.getenv("MAVEN_CENTRAL_URL")
-                    ?: "https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/",
-            )
-            credentials {
-                username = System.getenv("MAVEN_CENTRAL_USERNAME")
-                password = System.getenv("MAVEN_CENTRAL_PASSWORD")
+        // `MAVEN_CENTRAL_URL` switches the target: unset publishes to Central,
+        // a `file:` URL (a dry run) writes the same artifacts locally. The two
+        // are separate repositories because a file URL cannot carry the HTTP
+        // basic-auth credentials Central requires.
+        if (System.getenv("MAVEN_CENTRAL_URL").isNullOrBlank()) {
+            maven {
+                name = "central"
+                // Central Portal's OSSRH-compatible endpoint; the old
+                // `s01.oss.sonatype.org` host is retired.
+                url = uri("https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/")
+                credentials {
+                    username = System.getenv("MAVEN_CENTRAL_USERNAME") ?: ""
+                    password = System.getenv("MAVEN_CENTRAL_PASSWORD") ?: ""
+                }
+            }
+        } else {
+            maven {
+                name = "local-dry-run"
+                url = uri(System.getenv("MAVEN_CENTRAL_URL")!!)
             }
         }
     }
