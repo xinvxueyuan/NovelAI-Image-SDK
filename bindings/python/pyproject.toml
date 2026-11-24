@@ -1,7 +1,7 @@
 [project]
 name = "novelai-image-sdk"
 # Kept in step with Cargo.toml by `cargo xtask sync-versions`.
-version = "0.1.0"
+version = "0.1.7"
 description = "NovelAI image-generation SDK with Chrome-fingerprinted transport"
 readme = "README.md"
 requires-python = ">=3.9"

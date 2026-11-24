@@ -1,6 +1,6 @@
 {
   "name": "@xinvxueyuan/novelai-image-sdk",
-  "version": "0.1.0",
+  "version": "0.1.7",
   "description": "NovelAI image-generation SDK with Chrome-fingerprinted transport",
   "license": "MIT",
   "main": "index.js",

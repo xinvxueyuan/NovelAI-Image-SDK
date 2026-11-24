@@ -9,6 +9,7 @@ use std::process::Command as Proc;
 
 use anyhow::{Context, bail};
 use clap::{Parser, Subcommand};
+use regex::Regex;
 
 #[derive(Parser)]
 #[command(name = "xtask", about = "NovelAI-Image-SDK repo tasks")]
@@ -216,14 +217,56 @@ fn workspace_version(root: &Path) -> anyhow::Result<String> {
 }
 
 /// Replace a version string in a manifest, reporting whether it changed.
+/// Replace the version captured by `pattern`'s `{version}` slot.
+///
+/// `pattern` must contain exactly one `{version}`; it is compiled as a regex
+/// where that slot matches any version-shaped string. A plain `str::replace`
+/// cannot work here: the pattern is a template, not the literal text, so
+/// nothing would ever match.
 fn patch_version(path: &Path, pattern: &str, version: &str) -> anyhow::Result<Option<String>> {
     let text =
         std::fs::read_to_string(path).with_context(|| format!("cannot read {}", path.display()))?;
-    let updated = text.replace(pattern, &pattern.replace("{version}", version));
-    if updated == text {
+
+    let mut regex = String::new();
+    for (index, part) in pattern.split("{version}").enumerate() {
+        if index > 0 {
+            // Version-shaped: digits, dots, optionally a pre-release suffix.
+            regex.push_str(r"([0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)");
+        }
+        regex.push_str(&regex_escape(part));
+    }
+
+    let re = Regex::new(&regex).with_context(|| format!("invalid pattern {pattern}"))?;
+    let Some(captures) = re.captures(&text) else {
+        return Ok(None);
+    };
+    let Some(current) = captures.get(1) else {
+        return Ok(None);
+    };
+    if current.as_str() == version {
         return Ok(None);
     }
+    // Replace only the captured version; the surrounding text (a JSON key, a
+    // TOML assignment) must survive untouched.
+    let updated = format!(
+        "{}{}{}",
+        &text[..current.start()],
+        version,
+        &text[current.end()..]
+    );
     Ok(Some(updated))
+}
+
+/// Escape the literal parts of a regex template.
+fn regex_escape(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for character in text.chars() {
+        if r"\\.^$|?*+()[]{}".contains(character) {
+            out.push('\\');
+        }
+        out.push(character);
+    }
+    out
 }
 
 fn sync_versions(check_only: bool) -> anyhow::Result<()> {

@@ -2655,6 +2655,7 @@ dependencies = [
  "anyhow",
  "clap",
  "novelai-image-sdk",
+ "regex",
  "serde_json",
  "tokio",
 ]
