@@ -165,6 +165,21 @@ fn bindings(language: Option<String>, release: bool) -> anyhow::Result<()> {
             .arg("--out-dir")
             .arg(&out_dir);
         run(&mut generate)?;
+        if lang == "swift" {
+            // SwiftPM's `systemLibrary` target wants a directory containing the
+            // header and a file literally named `module.modulemap`; UniFFI
+            // writes `<Module>.modulemap` beside the Swift file.
+            let module_dir = out_dir.join("NovelAIImageSDKFFI");
+            std::fs::create_dir_all(&module_dir)?;
+            std::fs::copy(
+                out_dir.join("NovelAIImageSDKFFI.h"),
+                module_dir.join("NovelAIImageSDKFFI.h"),
+            )?;
+            std::fs::copy(
+                out_dir.join("NovelAIImageSDKFFI.modulemap"),
+                module_dir.join("module.modulemap"),
+            )?;
+        }
         println!("generated {lang} bindings in {}", out_dir.display());
     }
 
