@@ -165,6 +165,9 @@ fn bindings(language: Option<String>, release: bool) -> anyhow::Result<()> {
             .arg("--out-dir")
             .arg(&out_dir);
         run(&mut generate)?;
+        if lang == "kotlin" {
+            package_kotlin_library(&root, profile)?;
+        }
         if lang == "swift" {
             // SwiftPM's `systemLibrary` target wants a directory containing the
             // header and a file literally named `module.modulemap`; UniFFI
@@ -239,6 +242,11 @@ fn sync_versions(check_only: bool) -> anyhow::Result<()> {
             "bindings/node/package.json",
             "\"version\": \"{version}\"",
             "npm",
+        ),
+        (
+            "bindings/node/package.json",
+            "\"@xinvxueyuan/novelai-image-sdk-{platform}\": \"{version}\"",
+            "npm-platform-deps",
         ),
         (
             "bindings/kotlin/build.gradle.kts",
@@ -332,6 +340,58 @@ fn check() -> anyhow::Result<()> {
         }
     }
     println!("all gates passed");
+    Ok(())
+}
+
+/// The resource directory name for the host running the build.
+fn host_platform_tag() -> &'static str {
+    if cfg!(windows) {
+        "win-x64"
+    } else if cfg!(target_os = "macos") {
+        if cfg!(target_arch = "aarch64") {
+            "mac-arm64"
+        } else {
+            "mac-x64"
+        }
+    } else if cfg!(target_arch = "aarch64") {
+        "linux-arm64"
+    } else {
+        "linux-x64"
+    }
+}
+
+/// Copy the host's cdylib into the Kotlin package's resources.
+///
+/// A JAR cannot load a shared library from inside itself, so NativeLoader
+/// extracts `resources/<os>-<arch>/` at runtime. The release workflow collects
+/// the other platforms' libraries separately.
+fn package_kotlin_library(root: &Path, profile: &str) -> anyhow::Result<()> {
+    let target_dir = root.join("target").join(profile);
+    let candidates = [
+        "novelai_image_sdk_ffi.dll",
+        "libnovelai_image_sdk_ffi.dylib",
+        "libnovelai_image_sdk_ffi.so",
+    ];
+    let Some(source) = candidates
+        .iter()
+        .map(|name| target_dir.join(name))
+        .find(|path| path.exists())
+    else {
+        println!(
+            "note: no native library built for this host;              the JAR will carry no native resources"
+        );
+        return Ok(());
+    };
+
+    let destination = root
+        .join("bindings")
+        .join("kotlin")
+        .join("src/main/resources")
+        .join(host_platform_tag());
+    std::fs::create_dir_all(&destination)?;
+    let target = destination.join(source.file_name().context("library has a name")?);
+    std::fs::copy(&source, &target)?;
+    println!("packaged {} into {}", source.display(), target.display());
     Ok(())
 }
 

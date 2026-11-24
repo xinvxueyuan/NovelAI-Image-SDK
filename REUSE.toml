@@ -22,6 +22,7 @@ version = 3
 path = [
   "bindings/node/node_modules",
   "bindings/node/*.node",
+  "bindings/kotlin/src/main/resources/**",
   "third_party/**",
   "**/target/**",
   "bindings/python/dist/**",

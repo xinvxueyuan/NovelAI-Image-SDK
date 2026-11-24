@@ -8,6 +8,7 @@
 plugins {
     `java-library`
     `maven-publish`
+    signing
     kotlin("jvm") version "2.1.0"
 }
 
@@ -31,17 +32,35 @@ kotlin {
     jvmToolchain(17)
 }
 
+// Maven Central requires sources and javadoc artifacts for every publication.
+java {
+    withSourcesJar()
+    withJavadocJar()
+}
+
 sourceSets {
     main {
         kotlin.srcDir("generated")
-        // `resources/<os>-<arch>/` holds the native libraries produced by
-        // `cargo xtask bindings --language kotlin` plus the release build.
-        resources.srcDir("src/main/resources")
+        // `src/main/resources/<os>-<arch>/` holds the native libraries that
+        // `cargo xtask bindings --language kotlin` copies in; Gradle already
+        // includes that directory, so it must not be added twice.
     }
 }
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+// Maven Central rejects artifacts without a detached signature. The release
+// workflow supplies the key through these variables; a local build without
+// them still works and simply skips signing.
+signing {
+    val key = System.getenv("SIGNING_KEY")
+    val password = System.getenv("SIGNING_PASSWORD")
+    if (!key.isNullOrBlank()) {
+        useInMemoryPgpKeys(key, password)
+        sign(publishing.publications)
+    }
 }
 
 publishing {
@@ -50,6 +69,10 @@ publishing {
             from(components["java"])
             pom {
                 name.set("novelai-image-sdk")
+                // Central validates these three coordinates.
+                groupId = "io.github.xinvxueyuan"
+                artifactId = "novelai-image-sdk"
+                version = project.version.toString()
                 description.set(
                     "NovelAI image-generation SDK with Chrome-fingerprinted transport",
                 )
@@ -72,9 +95,11 @@ publishing {
         // The release workflow sets these for Maven Central.
         maven {
             name = "central"
+            // Central Portal's OSSRH-compatible endpoint. The old
+            // `s01.oss.sonatype.org` host is retired.
             url = uri(
                 System.getenv("MAVEN_CENTRAL_URL")
-                    ?: "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/",
+                    ?: "https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/",
             )
             credentials {
                 username = System.getenv("MAVEN_CENTRAL_USERNAME")

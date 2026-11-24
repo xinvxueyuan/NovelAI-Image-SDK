@@ -212,6 +212,92 @@ jobs:
           done
           npm publish --access public --provenance
 
+  kotlin:
+    name: Kotlin JAR
+    needs: [validate, test]
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-rust
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Package the Linux native library
+        run: cargo run -p xtask -- bindings --language kotlin --release
+      - name: Build the JAR
+        working-directory: bindings/kotlin
+        run: gradle build --no-daemon
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: kotlin-jar
+          path: bindings/kotlin/build/libs/*.jar
+
+  kotlin-native:
+    name: Kotlin native library (${{ matrix.platform }})
+    needs: [validate, test]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2025
+            platform: win-x64
+          - os: macos-26
+            platform: mac-arm64
+          - os: ubuntu-26.04-arm
+            platform: linux-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-rust
+      - name: Build the library
+        run: cargo run -p xtask -- bindings --language kotlin --release
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: kotlin-native-${{ matrix.platform }}
+          path: bindings/kotlin/src/main/resources/${{ matrix.platform }}/
+
+  maven:
+    name: Maven Central
+    needs: [validate, test, kotlin, kotlin-native]
+    runs-on: ubuntu-26.04
+    environment: release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: kotlin-native-*
+          path: bindings/kotlin/src/main/resources
+          merge-multiple: false
+      - name: Flatten the native resources
+        working-directory: bindings/kotlin/src/main/resources
+        run: |
+          # download-artifact nests each artifact under its own directory;
+          # move `<platform>/…` up one level so the JAR layout is flat.
+          for dir in kotlin-native-*/; do
+            platform="${dir#kotlin-native-}"
+            platform="${platform%/}"
+            mkdir -p "$platform"
+            cp -r "$dir"* "$platform"/ 2>/dev/null || true
+            rm -rf "$dir"
+          done
+          ls -R .
+      - name: Publish to Maven Central
+        working-directory: bindings/kotlin
+        env:
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          # Central requires a detached signature on every artifact. The same
+          # key that signs commits signs the JAR, so an existing secret covers
+          # both once it is added.
+          SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+          SIGNING_PASSWORD: ${{ secrets.GPG_SIGNING_PASSWORD }}
+        run: gradle publish --no-daemon
+
   swift:
     name: Swift XCFramework
     needs: [validate, test]
@@ -245,7 +331,7 @@ jobs:
 
   github-release:
     name: GitHub release
-    needs: [validate, test, python-wheels, pypi, npm-publish, swift]
+    needs: [validate, test, python-wheels, pypi, npm-publish, maven, swift]
     runs-on: ubuntu-26.04
     permissions:
       contents: write
