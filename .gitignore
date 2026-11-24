@@ -28,3 +28,7 @@ fixtures/golden/.generated-at
 docs/book/
 # Test scratch space
 /tmp-bindings/
+
+# Submodule build artifacts (created by the golden-fixture job)
+third_party/novelai-image-mcp/.venv/
+third_party/novelai-image-mcp/node_modules/

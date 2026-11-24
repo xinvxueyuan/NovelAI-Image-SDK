@@ -1,5 +1,11 @@
 [files]
-exclude = ["target/", "**/node_modules/", "bindings/*/generated/"]
+exclude = [
+  "target/",
+  "**/node_modules/",
+  "bindings/*/generated/",
+  # The reference implementation is a git submodule, not our code.
+  "third_party/",
+]
 
 # Pin Cargo.toml validation to a fixed schema version, so formatting choices
 # stay stable across tombi releases.

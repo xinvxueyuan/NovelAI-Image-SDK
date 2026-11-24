@@ -8,6 +8,8 @@ extend-exclude = [
   # Golden fixtures are generated from the reference implementation; their
   # strings are upstream text, not ours to spell-check.
   "fixtures/golden/",
+  # The reference implementation is a git submodule, not our code.
+  "third_party/",
 ]
 
 [default]

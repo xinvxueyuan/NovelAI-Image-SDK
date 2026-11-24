@@ -74,6 +74,11 @@ jobs:
       - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d
 
       - name: Regenerate fixtures from the pinned reference
+        # `gen_fixtures.py` resolves the reference relative to its CWD, while
+        # `uv run --directory` changes into the reference's own package dir.
+        # Pass the checkout explicitly so both stay correct.
+        env:
+          NOVELAI_REFERENCE_ROOT: ${{ github.workspace }}/third_party/novelai-image-mcp
         run: uv run --directory third_party/novelai-image-mcp/apps/server python "$GITHUB_WORKSPACE/scripts/gen_fixtures.py"
 
       - name: Fixtures must be committed

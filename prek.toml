@@ -11,6 +11,9 @@ default_install_hook_types = ["pre-commit", "pre-push", "commit-msg"]
 # at pre-commit and let the commit-metadata hooks opt into the other two.
 default_stages = ["pre-commit"]
 
+# Git submodules are other projects. Never lint or format their files.
+exclude = "^third_party/"
+
 [[repos]]
 repo = "builtin"
 hooks = [
@@ -70,6 +73,8 @@ hooks = [
     language = "system",
     entry = "tombi format --check",
     types = ["toml"],
-    pass_filenames = false,
+    # Cargo owns Cargo.lock's formatting; tombi would rewrite it.
+    exclude = '''(^|/)Cargo\.lock$''',
+    pass_filenames = true,
   },
 ]
