@@ -6,6 +6,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-11-25
+
+Publishes the PyPI wheel.
+
+### Fixed
+
+- PyPI rejected the Linux wheel: the runner's glibc is too new to produce an
+  installable manylinux tag. The Linux wheel now builds inside the official
+  `manylinux_2_28` container and is repaired with `auditwheel`, so the tag
+  reflects the symbols the binary actually needs.
+
 ## [0.1.3] - 2026-11-24
 
 Publishes the npm packages.

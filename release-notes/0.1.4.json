@@ -1,0 +1,5 @@
+{
+  "name": "NovelAI Image SDK v0.1.4",
+  "body": "Publishes the PyPI wheel.\n\n## Fixed\n\n- PyPI rejected the Linux wheel (`linux_x86_64` is not an installable tag). The runner's glibc is newer than any long-term-support baseline, so the Linux wheel now builds inside the official `manylinux_2_28` container and is repaired with `auditwheel`; the tag reflects the symbols the binary actually requires.\n\ncrates.io, Maven and the npm packages published at earlier patch versions; this release differs only in the Python wheel.\n",
+  "prerelease": false
+}

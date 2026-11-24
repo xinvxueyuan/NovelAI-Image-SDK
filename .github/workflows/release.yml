@@ -98,25 +98,66 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-26.04, windows-2025, macos-26]
-    runs-on: ${{ matrix.os }}
+        include:
+          # The Linux wheel must link an old glibc to be installable on
+          # long-term-support distributions. The runner image is not, so the
+          # build runs inside the official manylinux_2_28 container.
+          - os: manylinux_2_28_x86_64
+            runs-on: ubuntu-26.04
+            container: quay.io/pypa/manylinux_2_28_x86_64
+          - os: windows-2025
+            runs-on: windows-2025
+            container: ""
+          - os: macos-26
+            runs-on: macos-26
+            container: ""
+    runs-on: ${{ matrix.runs-on }}
+    container: ${{ matrix.container || null }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install build prerequisites in the container
+        if: matrix.container != ''
+        # The container has neither Rust nor libclang; both are needed.
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs             | sh -s -- -y --profile minimal --default-toolchain 1.100.0
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          dnf install -y clang cmake nasm perl-core zlib-devel
       - uses: ./.github/actions/setup-rust
+        if: matrix.container == ''
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        if: matrix.container == ''
         with:
           python-version: "3.13"
       - name: Generate the binding module
         run: cargo run -p xtask -- bindings --language python --release
+      - name: Select the container interpreter
+        if: matrix.container != ''
+        run: |
+          PYBIN=$(ls -d /opt/python/cp313-cp313/bin)
+          echo "PATH=$PYBIN:$PATH" >> "$GITHUB_ENV"
       - name: Build the wheel
         working-directory: bindings/python
-        # Everything here is Python rather than shell: `cp` and a `for` loop
-        # are not portable to the Windows runner's default shell.
+        # Python rather than shell throughout: `cp` and a `for` loop are not
+        # portable to the Windows runner's default shell.
         run: |
           python -m pip install --upgrade build setuptools setuptools-rust wheel
           python -c "import shutil, pathlib; shutil.copy('../../LICENSE', 'LICENSE')"
           python -m build --wheel
           python scripts/retag_wheel.py
+      - name: Repair the Linux wheel
+        if: matrix.container != ''
+        working-directory: bindings/python
+        # Renaming the tag is not enough: PyPI rejects `linux_x86_64`, and a
+        # wheel claiming manylinux must actually link an older glibc than the
+        # ubuntu-26.04 runner ships. auditwheel inspects the ELF symbols and
+        # picks the tag; it fails loudly when the binary needs a newer glibc
+        # than any long-term-support baseline provides, which is the signal to
+        # move the build into a manylinux container.
+        run: |
+          python -m pip install --quiet auditwheel
+          rm -f dist/*manylinux*.whl
+          python -m auditwheel repair --wheel-dir dist dist/*.whl
+          ls dist/
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: wheel-${{ matrix.os }}
