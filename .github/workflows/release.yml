@@ -310,6 +310,7 @@ jobs:
         run: |
           # `npm pack` exercises the same manifest resolution as publish and
           # writes a tarball we can inspect.
+          mkdir -p /tmp/npm-packs
           for dir in npm/*/; do
             npm pack "$dir" --pack-destination /tmp/npm-packs
           done
