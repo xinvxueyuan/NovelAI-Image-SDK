@@ -15,10 +15,14 @@
     "node": ">=20.17"
   },
   "napi": {
-    "name": "novelai_image_ffi_napi",
-    "triples": {
-      "defaults": true
-    }
+    "binaryName": "novelai_image_ffi_napi",
+    "targets": [
+      "x86_64-unknown-linux-gnu",
+      "aarch64-unknown-linux-gnu",
+      "x86_64-pc-windows-msvc",
+      "aarch64-apple-darwin",
+      "x86_64-apple-darwin"
+    ]
   },
   "keywords": [
     "novelai",
