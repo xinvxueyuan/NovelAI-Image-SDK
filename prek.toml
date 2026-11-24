@@ -59,6 +59,17 @@ repo = "local"
 hooks = [
   # Formatters only. CI runs the same checks, but catching a formatting
   # failure here costs a second instead of a round trip.
+  # The repository's own gitmoji + Conventional Commits validator. prek's
+  # `check-commit-trailers` above only reads trailers, so this is what enforces
+  # the subject format.
+  {
+    id = "gitmoji-subject",
+    name = "commit subject is gitmoji + Conventional Commits",
+    language = "system",
+    entry = "sh .githooks/gitmoji-commit-msg",
+    pass_filenames = true,
+    stages = ["commit-msg"],
+  },
   {
     id = "format-rust",
     name = "cargo fmt",
