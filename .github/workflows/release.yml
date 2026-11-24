@@ -187,8 +187,14 @@ jobs:
         run: |
           PYTHON=/opt/python/cp313-cp313/bin/python
           "$PYTHON" -m pip install --quiet auditwheel
-          rm -f dist/*manylinux*.whl
-          "$PYTHON" -m auditwheel repair --wheel-dir dist dist/*.whl
+          # Repair into a scratch directory, then swap it in for the original:
+          # keeping both would upload the `linux_x86_64` wheel too, which PyPI
+          # rejects.
+          mkdir -p wheelhouse
+          "$PYTHON" -m auditwheel repair --wheel-dir wheelhouse dist/*.whl
+          rm -f dist/*.whl
+          mv wheelhouse/*.whl dist/
+          rmdir wheelhouse
           ls dist/
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -213,6 +219,13 @@ jobs:
         run: |
           python -m pip install --quiet twine
           python -m twine check dist/*
+          # PyPI refuses `linux_x86_64`; catch it here rather than after the
+          # upload has half-succeeded.
+          if ls dist/*linux_x86_64.whl dist/*linux_aarch64.whl >/dev/null 2>&1; then
+            echo "::error::a bare linux_* wheel is in dist; PyPI will reject it"
+            exit 1
+          fi
+          ls -la dist/
       - name: Publish to PyPI
         if: needs.validate.outputs.dry_run == 'false'
         uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
@@ -411,8 +424,10 @@ jobs:
           # key that signs commits signs the JAR.
           SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
           SIGNING_PASSWORD: ${{ secrets.GPG_SIGNING_PASSWORD }}
-          # A dry run publishes to a local directory instead of Central.
-          MAVEN_CENTRAL_URL: ${{ needs.validate.outputs.dry_run == 'true' && format('file://{0}/maven-dry-run', github.workspace) || 'https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/' }}
+          # A dry run publishes to a local directory instead of Central. The
+          # variable must be *absent* for a real publish: setting it to the
+          # Central URL selects the unauthenticated local repository branch.
+          MAVEN_CENTRAL_URL: ${{ needs.validate.outputs.dry_run == 'true' && format('file://{0}/maven-dry-run', github.workspace) || '' }}
         run: gradle publish --no-daemon
       - name: List the published artifacts
         working-directory: bindings/kotlin
