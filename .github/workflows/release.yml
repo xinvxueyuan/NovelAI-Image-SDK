@@ -118,9 +118,16 @@ jobs:
       - name: Install build prerequisites in the container
         if: matrix.container != ''
         # The container has neither Rust nor libclang; both are needed.
+        #
+        # `RUSTUP_HOME` and `CARGO_HOME` are exported to `$GITHUB_ENV` because
+        # the runner points `HOME` at /github/home while the container user's
+        # real home is /root, and rustup refuses to run when the two disagree.
         run: |
+          export RUSTUP_HOME=/root/.rustup CARGO_HOME=/root/.cargo
+          echo "RUSTUP_HOME=$RUSTUP_HOME" >> "$GITHUB_ENV"
+          echo "CARGO_HOME=$CARGO_HOME" >> "$GITHUB_ENV"
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs             | sh -s -- -y --profile minimal --default-toolchain 1.100.0
-          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          echo "/root/.cargo/bin" >> "$GITHUB_PATH"
           dnf install -y clang cmake nasm perl-core zlib-devel
       - uses: ./.github/actions/setup-rust
         if: matrix.container == ''

@@ -1,0 +1,5 @@
+{
+  "name": "NovelAI Image SDK v0.1.5",
+  "body": "Publishes the PyPI wheel.\n\n## Fixed\n\n- The manylinux container's `HOME` differs from the container user's real home, so `rustup` refused to install the toolchain there. `RUSTUP_HOME` and `CARGO_HOME` are now exported explicitly inside the container, and the wheel is built against the glibc the `manylinux_2_28` tag promises.\n\ncrates.io, Maven, npm and the Swift framework published at earlier patch versions; this release differs only in the Python wheel.\n",
+  "prerelease": false
+}

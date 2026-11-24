@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-11-25
+
+Publishes the PyPI wheel.
+
+### Fixed
+
+- The manylinux container sets `HOME` differently from the container user's
+  real home, which makes `rustup` refuse to install. `RUSTUP_HOME` and
+  `CARGO_HOME` are now exported explicitly inside the container.
+
 ## [0.1.4] - 2026-11-25
 
 Publishes the PyPI wheel.
