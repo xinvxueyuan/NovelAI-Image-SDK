@@ -6,6 +6,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-24
+
+Completes the first release: the crate published as 0.1.0, and this patch
+publishes the PyPI wheel, the npm addons and the macOS Swift framework.
+
+### Fixed
+
+- The Python wheel is retagged `py3-none-<platform>`; the extension is a
+  ctypes-loaded cdylib, so it does not depend on the CPython ABI and now
+  installs on every Python 3.
+- The npm build on Windows forces `shell: bash`; a POSIX line continuation in
+  the multi-line command fails under PowerShell.
+- The Swift framework is macOS-only. BoringSSL is not cross-compiled for the
+  iOS SDKs yet.
+
 ## [0.1.0] - 2026-11-24
 
 First release: the Rust core and the Python, TypeScript, Kotlin and Swift
