@@ -61,6 +61,11 @@ against a mock server. If you touch the transport, those tests are the
 contract. The live spike (`cargo xtask live-spike`) must also still reach the
 origin.
 
+## Releasing
+
+See [`docs/releasing.md`](docs/releasing.md) for the tag-driven flow, the
+required secrets, and what is still missing before the first tag.
+
 ## Commits and PRs
 
 - **gitmoji + Conventional Commits**, e.g.
