@@ -22,6 +22,8 @@ repositories {
 dependencies {
     // UniFFI's Kotlin bindings use JNA for the FFI calls.
     api("net.java.dev.jna:jna:5.15.0")
+    // Generated async methods use `suspendCancellableCoroutine`.
+    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     testImplementation(kotlin("test"))
 }
 

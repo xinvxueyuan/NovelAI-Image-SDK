@@ -55,3 +55,6 @@ bindings/node/package-lock.json
 bindings/node/target/
 .venv-packaging/
 .venv-wheel-test/
+bindings/kotlin/build/
+bindings/kotlin/.gradle/
+bindings/kotlin/.kotlin/

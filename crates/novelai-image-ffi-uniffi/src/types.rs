@@ -27,7 +27,7 @@ impl Credentials {
             }
             _ => {
                 return Err(SdkError::Validation {
-                    message: "provide a token or a complete username/password pair".into(),
+                    reason: "provide a token or a complete username/password pair".into(),
                 });
             }
         };

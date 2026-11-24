@@ -20,48 +20,52 @@ use novelai_image_sdk::constants as core;
 
 uniffi::setup_scaffolding!();
 
-/// A domain failure. `message` is preformatted by the core crate, including
+/// A domain failure. `reason` is preformatted by the core crate, including
 /// NovelAI's ` [code X: explanation]` suffix.
+///
+/// The field is called `reason`, not `message`: UniFFI's Kotlin generator
+/// emits `val message` for every variant, and that collides with
+/// `kotlin.Throwable.message`, so the generated code does not compile.
 #[derive(Debug, thiserror::Error, uniffi::Error)]
 #[non_exhaustive]
 pub enum SdkError {
     /// The request is invalid.
-    #[error("{message}")]
-    Validation { message: String },
+    #[error("{reason}")]
+    Validation { reason: String },
     /// Credentials are missing, invalid, or expired.
-    #[error("{message}")]
+    #[error("{reason}")]
     Authentication {
-        message: String,
+        reason: String,
         code: Option<String>,
         explanation: Option<String>,
     },
     /// No credentials were configured.
-    #[error("{message}")]
-    MissingToken { message: String },
+    #[error("{reason}")]
+    MissingToken { reason: String },
     /// The account has insufficient Anlas or no subscription.
-    #[error("{message}")]
-    InsufficientCredits { message: String },
+    #[error("{reason}")]
+    InsufficientCredits { reason: String },
     /// The account hit a concurrency or rate limit.
-    #[error("{message}")]
-    Concurrency { message: String },
+    #[error("{reason}")]
+    Concurrency { reason: String },
     /// NovelAI rejected or failed the request with another status.
-    #[error("{message}")]
-    Provider { message: String },
+    #[error("{reason}")]
+    Provider { reason: String },
     /// A request exceeded its timeout.
-    #[error("{message}")]
-    Timeout { message: String },
+    #[error("{reason}")]
+    Timeout { reason: String },
     /// The request could not reach NovelAI.
-    #[error("{message}")]
-    Transport { message: String },
+    #[error("{reason}")]
+    Transport { reason: String },
     /// NovelAI returned malformed data.
-    #[error("{message}")]
-    Response { message: String },
+    #[error("{reason}")]
+    Response { reason: String },
     /// The image is malformed or unsupported.
-    #[error("{message}")]
-    Image { message: String },
+    #[error("{reason}")]
+    Image { reason: String },
     /// The SDK is misconfigured.
-    #[error("{message}")]
-    Config { message: String },
+    #[error("{reason}")]
+    Config { reason: String },
 }
 
 impl From<novelai_image_sdk::error::Error> for SdkError {
@@ -77,30 +81,30 @@ impl From<novelai_image_sdk::error::Error> for SdkError {
                 explanation,
             } => {
                 let _ = (c, explanation);
-                Self::Validation { message }
+                Self::Validation { reason: message }
             }
             E::Authentication {
                 message,
                 code: c,
                 explanation,
             } => Self::Authentication {
-                message,
+                reason: message,
                 code: code(&c),
                 explanation,
             },
-            E::MissingToken { message } => Self::MissingToken { message },
-            E::InsufficientCredits { message, .. } => Self::InsufficientCredits { message },
-            E::Concurrency { message, .. } => Self::Concurrency { message },
-            E::Provider { message, .. } => Self::Provider { message },
-            E::Timeout { message } => Self::Timeout { message },
-            E::Transport { message } => Self::Transport { message },
-            E::Response { message } => Self::Response { message },
-            E::Image { message } => Self::Image { message },
-            E::Config { message } => Self::Config { message },
+            E::MissingToken { message } => Self::MissingToken { reason: message },
+            E::InsufficientCredits { message, .. } => Self::InsufficientCredits { reason: message },
+            E::Concurrency { message, .. } => Self::Concurrency { reason: message },
+            E::Provider { message, .. } => Self::Provider { reason: message },
+            E::Timeout { message } => Self::Timeout { reason: message },
+            E::Transport { message } => Self::Transport { reason: message },
+            E::Response { message } => Self::Response { reason: message },
+            E::Image { message } => Self::Image { reason: message },
+            E::Config { message } => Self::Config { reason: message },
             // `Error` is #[non_exhaustive]; surface future variants as provider
             // failures rather than panicking at the FFI boundary.
             other => Self::Provider {
-                message: other.to_string(),
+                reason: other.to_string(),
             },
         }
     }
