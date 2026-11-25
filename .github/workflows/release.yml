@@ -251,6 +251,10 @@ jobs:
         uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         with:
           packages-dir: dist
+          # PyPI is immutable, so a rerun of a version that already landed is a
+          # no-op rather than a 400. Reruns are the normal repair path for a
+          # sibling job, and this one would otherwise block the release.
+          skip-existing: true
 
   npm:
     name: npm (${{ matrix.target }})
