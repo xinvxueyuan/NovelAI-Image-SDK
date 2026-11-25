@@ -9,7 +9,7 @@ plugins {
     `java-library`
     `maven-publish`
     signing
-    kotlin("jvm") version "2.1.0"
+    kotlin("jvm") version "2.4.21"
 }
 
 group = "io.github.xinvxueyuan"
@@ -22,9 +22,9 @@ repositories {
 
 dependencies {
     // UniFFI's Kotlin bindings use JNA for the FFI calls.
-    api("net.java.dev.jna:jna:5.15.0")
+    api("net.java.dev.jna:jna:5.19.1")
     // Generated async methods use `suspendCancellableCoroutine`.
-    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
     testImplementation(kotlin("test"))
 }
 
