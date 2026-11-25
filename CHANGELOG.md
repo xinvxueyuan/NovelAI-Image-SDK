@@ -6,6 +6,31 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-11-25
+
+Publishes the npm packages, and fixes the loader they shipped with.
+
+### Fixed
+
+- The npm entry point only searched its own directory for the native addon,
+  which is where `napi build` puts it during local development. A published
+  install never has it there — npm resolves the platform package and the addon
+  lives in that directory — so `require('@xinvxueyuan/novelai-image-sdk')`
+  threw "No native addon found" on every platform. It now resolves the host
+  suffix, prefers a local build, falls back to the platform package, and fails
+  with the list of published platforms.
+- `npm` publishing goes through OIDC trusted publishing with `npm stage
+  publish` instead of an access token: the version enters a review queue that a
+  maintainer approves, so the account keeps 2FA and CI holds no credential. The
+  job runs Node 24, because npm 10.9.9 (the Node 22 image) predates both
+  trusted and staged publishing.
+
+### Changed
+
+- Kotlin plugin 2.1.0 → 2.4.21, JNA 5.15.0 → 5.19.1, and
+  kotlinx-coroutines-core 1.10.2 → 1.11.0.
+- `actions/setup-java` v4.7.1 → v6.3.0.
+
 ## [0.1.8] - 2026-11-25
 
 ### Fixed
