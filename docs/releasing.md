@@ -68,21 +68,31 @@ package once, locally, with an interactive 2FA login:
 [8544]: https://github.com/npm/cli/issues/8544
 
 ```bash
+# 1. Collect all five addons. The `npm` build job produces one per target, so a
+#    dry run is enough — download `node-<target>` artifacts into bindings/node.
 cd bindings/node
-npm login                        # interactive; the only step that prompts for a password
-npx napi create-npm-dirs         # writes npm/<platform>/package.json
-# Drop the five `.node` addons in beside package.json, named
-# <binary>.<platformArchABI>.node, and move each into its platform directory:
+ls *.node                       # should list five: <binary>.<platformArchABI>.node
+
+# 2. Log in once. This is the only step that prompts for a password or a
+#    one-time code; everything after it is plain `npm publish` under that session.
+npm login
+
+# 3. Generate the platform manifests and file each addon into its directory.
+npx napi create-npm-dirs
 for addon in *.node; do
   suffix="${addon#*.}"; suffix="${suffix%.node}"
   mv "$addon" "npm/$suffix/"
 done
+
+# 4. Publish the platforms first: the root package's `optionalDependencies`
+#    name them, and npm will not resolve a root package before they exist.
 for dir in npm/*/; do npm publish "$dir" --access public; done
 npm publish --access public
 ```
 
-Deliberately **not** `napi pre-publish`: in v3 that command runs `npm publish`
-itself, which would bypass both this ordering and, later, the staging review.
+Deliberately **not** `napi pre-publish`: in napi-rs v3 that command runs
+`npm publish` itself and creates a GitHub release, so it would bypass this
+ordering and, on later releases, the staging review.
 
 After that publish the trusted publishers can be registered (a newly created one
 must complete its first successful publish within two days, or it expires and
