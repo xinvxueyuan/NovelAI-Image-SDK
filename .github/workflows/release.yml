@@ -555,21 +555,27 @@ jobs:
           test -n "$fingerprint"
           echo "signing key: $fingerprint"
           # `keyserver.ubuntu.com` is the SKS instance Central checks first, and
-          # it accepts a non-interactive upload. `keys.openpgp.org` is the other
-          # one Central documents; it stores the key material without a
-          # verified UID, which is enough for a fingerprint lookup.
+          # it accepts a non-interactive upload. `pgp.mit.edu` is the third
+          # server Central supports; it is slow and occasionally unavailable,
+          # so a failure there must not sink the release.
           gpg --batch --keyserver hkps://keyserver.ubuntu.com \
             --send-keys "$fingerprint"
-          # `pgp.mit.edu` is the third server Central supports; it is slow and
-          # occasionally unavailable, so a failure here must not sink the
-          # release — the other two already carry the key.
           gpg --batch --keyserver hkps://pgp.mit.edu \
             --send-keys "$fingerprint" \
             || echo "::warning::pgp.mit.edu did not accept the key"
-          gpg --batch --yes --armor --export "$fingerprint" \
-            | curl --fail-with-body --silent --show-error \
-                --data-urlencode keytext@- \
-                https://keys.openpgp.org/vks/v1/upload
+          # `keys.openpgp.org` speaks VKS, not HKP: the body must be JSON
+          # (`{"keytext": ...}`). Its HKP endpoint rejects form posts with
+          # "expected application/json data". It stores the key material
+          # without a verified UID, which is enough for a fingerprint lookup.
+          gpg --batch --yes --armor --export "$fingerprint" > key.asc
+          python3 -c 'import json,sys; print(json.dumps({"keytext": open(sys.argv[1]).read()}))' \
+            key.asc > key.json
+          curl --fail-with-body --silent --show-error \
+            -H 'Content-Type: application/json' \
+            --data-binary @key.json \
+            https://keys.openpgp.org/vks/v1/upload \
+            || echo "::warning::keys.openpgp.org did not accept the key"
+          rm -f key.asc key.json
           echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
       # The OSSRH-compatible endpoint only *stores* the upload. Gradle's
       # `maven-publish` makes plain PUTs, so the service cannot tell where one
