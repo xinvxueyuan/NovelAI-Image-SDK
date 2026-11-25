@@ -22,6 +22,8 @@ __pycache__/
 # Node
 node_modules/
 npm-debug.log*
+# Holds an access token when publishing by hand; never commit it.
+.npmrc
 
 # Tooling artifacts
 fixtures/golden/.generated-at
