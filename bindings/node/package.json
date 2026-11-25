@@ -43,7 +43,6 @@
   },
   "scripts": {
     "build": "napi build --release",
-    "prepublishOnly": "napi prepublish -t npm",
     "test": "node --test"
   },
   "devDependencies": {
