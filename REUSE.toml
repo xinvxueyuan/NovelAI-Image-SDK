@@ -76,6 +76,7 @@ path = [
   "prek.toml",
   "bindings/kotlin/build.gradle.kts",
   "bindings/kotlin/settings.gradle.kts",
+  "bindings/kotlin/gradle.properties",
   "*.node",
   "clippy.toml",
   "tombi.toml",
