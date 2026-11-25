@@ -536,6 +536,41 @@ jobs:
           # Central URL selects the unauthenticated local repository branch.
           MAVEN_CENTRAL_URL: ${{ needs.validate.outputs.dry_run == 'true' && format('file://{0}/maven-dry-run', github.workspace) || '' }}
         run: gradle publish --no-daemon
+      # Central verifies each `.asc` by looking the signing key up on a public
+      # keyserver. Signing locally is not enough: a key that was never
+      # published fails the check with "Could not find a public key by the key
+      # fingerprint", which is what blocked the first 0.2.0 attempt. Upload the
+      # public half here so every release carries a resolvable signature.
+      - name: Publish the signing key to the keyservers
+        if: needs.validate.outputs.dry_run == 'false'
+        id: signing-key
+        env:
+          SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          export GNUPGHOME="$(mktemp -d)"
+          printf '%s' "$SIGNING_KEY" | gpg --batch --import
+          fingerprint="$(gpg --list-secret-keys --with-colons \
+            | awk -F: '/^fpr:/ {print $10; exit}')"
+          test -n "$fingerprint"
+          echo "signing key: $fingerprint"
+          # `keyserver.ubuntu.com` is the SKS instance Central checks first, and
+          # it accepts a non-interactive upload. `keys.openpgp.org` is the other
+          # one Central documents; it stores the key material without a
+          # verified UID, which is enough for a fingerprint lookup.
+          gpg --batch --keyserver hkps://keyserver.ubuntu.com \
+            --send-keys "$fingerprint"
+          # `pgp.mit.edu` is the third server Central supports; it is slow and
+          # occasionally unavailable, so a failure here must not sink the
+          # release — the other two already carry the key.
+          gpg --batch --keyserver hkps://pgp.mit.edu \
+            --send-keys "$fingerprint" \
+            || echo "::warning::pgp.mit.edu did not accept the key"
+          gpg --batch --yes --armor --export "$fingerprint" \
+            | curl --fail-with-body --silent --show-error \
+                --data-urlencode keytext@- \
+                https://keys.openpgp.org/vks/v1/upload
+          echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
       # The OSSRH-compatible endpoint only *stores* the upload. Gradle's
       # `maven-publish` makes plain PUTs, so the service cannot tell where one
       # deployment ends; until this call is made the artifacts sit in an
@@ -553,11 +588,28 @@ jobs:
           NAMESPACE: io.github.xinvxueyuan
         run: |
           set -euo pipefail
-          curl --fail-with-body --silent --show-error \
-            --retry 3 --retry-delay 5 --retry-connrefused \
-            -u "$MAVEN_CENTRAL_USERNAME:$MAVEN_CENTRAL_PASSWORD" \
-            -X POST \
-            "https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/${NAMESPACE}?publishing_type=automatic"
+          url="https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/${NAMESPACE}?publishing_type=automatic"
+          body="$(mktemp)"
+          # Keyserver propagation is not instant, and Central reports a key it
+          # has not indexed yet as a validation failure. Retry only that
+          # message: any other 4xx is a real defect and must fail loudly.
+          for attempt in 1 2 3 4 5; do
+            code="$(curl --silent --show-error -o "$body" -w '%{http_code}' \
+              -u "$MAVEN_CENTRAL_USERNAME:$MAVEN_CENTRAL_PASSWORD" \
+              -X POST "$url")" || true
+            cat "$body"
+            echo
+            case "$code" in
+              2??) exit 0 ;;
+            esac
+            if grep -q 'Could not find a public key' "$body" && [ "$attempt" -lt 5 ]; then
+              echo "the keyserver has not indexed the signing key yet; retrying in 30s"
+              sleep 30
+              continue
+            fi
+            echo "::error::the Portal rejected the deployment (HTTP $code)"
+            exit 1
+          done
       - name: List the published artifacts
         working-directory: bindings/kotlin
         run: find build/repo maven-dry-run -name "*.jar" -o -name "*.pom" 2>/dev/null | head -20 || true
