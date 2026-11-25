@@ -6,6 +6,32 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-25
+
+Closes the FFI gap that kept the bindings from matching the Rust core.
+
+### Added
+
+- Every generation option the Rust core already supported now crosses both FFI
+  boundaries: `dynamic_thresholding`, `smea`, `smea_dynamic`, `auto_smea`,
+  `add_original_image`, `controlnet_strength`, `controlnet_condition`,
+  `controlnet_model`, `reference_strengths`, `reference_information`,
+  `character_prompts`, `use_coords`, `use_order`, `legacy_uc`,
+  `normalize_reference_strengths`, `deliberate_euler_ancestral_bug`,
+  `prefer_brownian`, `skip_cfg_above_sigma`, `legacy`, `legacy_v3_extend`,
+  `inpaint_img2img_strength` and `straight_alpha`. Python, Kotlin, Swift,
+  Node.js, Go, C#, and C++ callers were limited to a 24-field subset before.
+- `NovelAiClient.collect_generation(request, max_events)` on the UniFFI
+  bindings. UniFFI has no streaming export, so it drains the core's
+  `stream_generation` stream into a list, matching Node's
+  `collectGeneration`.
+
+### Changed
+
+- The UniFFI record now converts through `novelai_image_sdk::spec`, the same
+  mapping the napi boundary uses, instead of a second hand-written 24-field
+  conversion. A field added to the core spec is now available to both.
+
 ## [0.1.9] - 2026-11-25
 
 Publishes the npm packages, and fixes the loader they shipped with.

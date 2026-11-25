@@ -36,7 +36,7 @@ let package = Package(
         // and `checksum` with the values printed by `cargo xtask release`.
         .binaryTarget(
             name: "NovelAIImageSDKRust",
-            url: "https://github.com/xinvxueyuan/NovelAI-Image-SDK/releases/download/v0.1.9/NovelAIImageSDK.xcframework.zip",
+            url: "https://github.com/xinvxueyuan/NovelAI-Image-SDK/releases/download/v0.2.0/NovelAIImageSDK.xcframework.zip",
             checksum: "0000000000000000000000000000000000000000000000000000000000000000"
         ),
     ]

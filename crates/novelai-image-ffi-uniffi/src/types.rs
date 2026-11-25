@@ -4,6 +4,8 @@
 //! impl in [`super`].
 
 use novelai_image_sdk::auth::Credentials as CoreCredentials;
+use novelai_image_sdk::spec::GenerationRequestSpec;
+use serde::Serialize;
 
 use super::SdkError;
 
@@ -126,7 +128,8 @@ pub struct ModelInfo {
 /// A generation request. Every field is optional; the core builder applies
 /// the documented defaults, then the same validation the Python reference
 /// performs.
-#[derive(Debug, Clone, Default, uniffi::Record)]
+#[derive(Debug, Clone, Default, Serialize, uniffi::Record)]
+#[serde(default)]
 pub struct GenerationRequest {
     /// The positive prompt (required).
     pub prompt: String,
@@ -160,8 +163,20 @@ pub struct GenerationRequest {
     pub quality: Option<bool>,
     /// Undesired-content preset index (`0..=3`).
     pub uc_preset: Option<u8>,
+    /// Enable dynamic thresholding (V3 family).
+    #[uniffi(default = None)]
+    pub dynamic_thresholding: Option<bool>,
     /// CFG rescale (`0.0..=1.0`).
     pub cfg_rescale: Option<f64>,
+    /// SMEA toggle (V4+ only).
+    #[uniffi(default = None)]
+    pub smea: Option<bool>,
+    /// Dynamic SMEA toggle (V4+ only).
+    #[uniffi(default = None)]
+    pub smea_dynamic: Option<bool>,
+    /// Automatic SMEA (V4+ only).
+    #[uniffi(default = None)]
+    pub auto_smea: Option<bool>,
     /// Source image, base64.
     pub image: Option<String>,
     /// Inpainting mask, base64.
@@ -170,78 +185,92 @@ pub struct GenerationRequest {
     pub strength: Option<f64>,
     /// img2img noise.
     pub noise: Option<f64>,
+    /// Include the source image in the response.
+    #[uniffi(default = None)]
+    pub add_original_image: Option<bool>,
+    /// ControlNet conditioning strength (`0.1..=2.0`).
+    #[uniffi(default = None)]
+    pub controlnet_strength: Option<f64>,
+    /// ControlNet conditioning image, base64.
+    #[uniffi(default = None)]
+    pub controlnet_condition: Option<String>,
+    /// ControlNet model name.
+    #[uniffi(default = None)]
+    pub controlnet_model: Option<String>,
     /// Vibe reference tokens.
     pub references: Option<Vec<String>>,
     /// Per-reference information-extracted values.
     pub reference_information: Option<Vec<f64>>,
+    /// Per-reference strength values.
+    #[uniffi(default = None)]
+    pub reference_strengths: Option<Vec<f64>>,
+    /// Additional character prompts (V4+).
+    #[uniffi(default = None)]
+    pub character_prompts: Option<Vec<CharacterPrompt>>,
+    /// Use per-character coordinates (V4+).
+    #[uniffi(default = None)]
+    pub use_coords: Option<bool>,
+    /// Preserve prompt order (V4+).
+    #[uniffi(default = None)]
+    pub use_order: Option<bool>,
+    /// Legacy UC ordering (V4+).
+    #[uniffi(default = None)]
+    pub legacy_uc: Option<bool>,
+    /// Normalize reference strengths (V4+).
+    #[uniffi(default = None)]
+    pub normalize_reference_strengths: Option<bool>,
+    /// Reproduce the euler-ancestral quirk (V4+).
+    #[uniffi(default = None)]
+    pub deliberate_euler_ancestral_bug: Option<bool>,
+    /// Prefer Brownian noise (V4+).
+    #[uniffi(default = None)]
+    pub prefer_brownian: Option<bool>,
+    /// Skip CFG above this sigma.
+    #[uniffi(default = None)]
+    pub skip_cfg_above_sigma: Option<u32>,
+    /// Legacy prompt ordering (V3).
+    #[uniffi(default = None)]
+    pub legacy: Option<bool>,
+    /// Legacy V3 extend prompt handling.
+    #[uniffi(default = None)]
+    pub legacy_v3_extend: Option<bool>,
+    /// img2img strength applied by inpaint.
+    #[uniffi(default = None)]
+    pub inpaint_img2img_strength: Option<u8>,
+    /// Apply straight alpha (V5).
+    #[uniffi(default = None)]
+    pub straight_alpha: Option<bool>,
     /// Estimate cost only (relaxes the image/mask requirements).
     pub estimate_only: Option<bool>,
 }
 
 impl GenerationRequest {
     pub(super) fn to_core(&self) -> Result<novelai_image_sdk::models::GenerationRequest, SdkError> {
-        use novelai_image_sdk::models::GenerationRequest as Core;
-        let mut builder = Core::new(self.prompt.clone());
-        if let Some(value) = &self.base_caption {
-            builder = builder.base_caption(Some(value.clone()));
-        }
-        if let Some(value) = &self.model {
-            builder = builder.model(value.parse().map_err(SdkError::from)?);
-        }
-        if let Some(value) = &self.action {
-            builder = builder.action(value.parse().map_err(SdkError::from)?);
-        }
-        if let Some(value) = &self.negative_prompt {
-            builder = builder.negative_prompt(value.clone());
-        }
-        if let Some(value) = self.width {
-            builder = builder.width(value);
-        }
-        if let Some(value) = self.height {
-            builder = builder.height(value);
-        }
-        if let Some(value) = self.n_samples {
-            builder = builder.n_samples(value);
-        }
-        if let Some(value) = self.steps {
-            builder = builder.steps(value);
-        }
-        if let Some(value) = self.scale {
-            builder = builder.scale(value);
-        }
-        if let Some(value) = &self.sampler {
-            builder = builder.sampler(value.parse().map_err(SdkError::from)?);
-        }
-        if let Some(value) = self.seed {
-            builder = builder.seed(value);
-        }
-        if let Some(value) = self.extra_noise_seed {
-            builder = builder.extra_noise_seed(Some(value));
-        }
-        if let Some(value) = &self.noise_schedule {
-            builder = builder.noise_schedule(value.parse().map_err(SdkError::from)?);
-        }
-        if let Some(value) = self.quality {
-            builder = builder.quality(value);
-        }
-        if let Some(value) = self.uc_preset {
-            builder = builder.uc_preset(value);
-        }
-        if let Some(value) = self.cfg_rescale {
-            builder = builder.cfg_rescale(value);
-        }
-        builder = builder
-            .image(self.image.clone())
-            .mask(self.mask.clone())
-            .strength(self.strength)
-            .noise(self.noise)
-            .references(self.references.clone().unwrap_or_default())
-            .reference_information(self.reference_information.clone().unwrap_or_default());
-        if let Some(value) = self.estimate_only {
-            builder = builder.estimate_only(value);
-        }
-        builder.build().map_err(SdkError::from)
+        let json = serde_json::to_vec(self).map_err(|error| SdkError::Validation {
+            reason: format!("request is not serializable: {error}"),
+        })?;
+        let spec: GenerationRequestSpec =
+            serde_json::from_slice(&json).map_err(|error| SdkError::Validation {
+                reason: format!("request shape mismatch: {error}"),
+            })?;
+        spec.into_request().map_err(SdkError::from)
     }
+}
+
+/// One additional character's prompt and placement (V4+).
+#[derive(Debug, Clone, Default, Serialize, uniffi::Record)]
+#[serde(default)]
+pub struct CharacterPrompt {
+    /// The character prompt text (required, non-blank).
+    pub prompt: String,
+    /// Per-character undesired content.
+    pub negative_prompt: String,
+    /// Horizontal position (`0.1..=0.9`).
+    pub x: f64,
+    /// Vertical position (`0.1..=0.9`).
+    pub y: f64,
+    /// Whether the character is active.
+    pub enabled: bool,
 }
 
 /// A settled, validated request — what the client will actually send.

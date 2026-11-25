@@ -3,6 +3,8 @@
 use napi::bindgen_prelude::{Buffer, Result};
 use napi_derive::napi;
 
+use novelai_image_sdk::spec::GenerationRequestSpec;
+
 use super::to_js_error;
 
 /// An image returned by NovelAI.
@@ -102,8 +104,16 @@ pub struct GenerationRequest {
     pub quality: Option<bool>,
     /// Undesired-content preset index (`0..=3`).
     pub uc_preset: Option<u8>,
+    /// Enable dynamic thresholding (V3 family).
+    pub dynamic_thresholding: Option<bool>,
     /// CFG rescale.
     pub cfg_rescale: Option<f64>,
+    /// SMEA toggle (V4+ only).
+    pub smea: Option<bool>,
+    /// Dynamic SMEA toggle (V4+ only).
+    pub smea_dynamic: Option<bool>,
+    /// Automatic SMEA (V4+ only).
+    pub auto_smea: Option<bool>,
     /// Source image, base64.
     pub image: Option<String>,
     /// Inpainting mask, base64.
@@ -112,8 +122,44 @@ pub struct GenerationRequest {
     pub strength: Option<f64>,
     /// img2img noise.
     pub noise: Option<f64>,
+    /// Include the source image in the response.
+    pub add_original_image: Option<bool>,
+    /// ControlNet conditioning strength (`0.1..=2.0`).
+    pub controlnet_strength: Option<f64>,
+    /// ControlNet conditioning image, base64.
+    pub controlnet_condition: Option<String>,
+    /// ControlNet model name.
+    pub controlnet_model: Option<String>,
     /// Vibe reference tokens.
     pub references: Option<Vec<String>>,
+    /// Per-reference information-extracted values.
+    pub reference_information: Option<Vec<f64>>,
+    /// Per-reference strength values.
+    pub reference_strengths: Option<Vec<f64>>,
+    /// Additional character prompts (V4+).
+    pub character_prompts: Option<Vec<CharacterPrompt>>,
+    /// Use per-character coordinates (V4+).
+    pub use_coords: Option<bool>,
+    /// Preserve prompt order (V4+).
+    pub use_order: Option<bool>,
+    /// Legacy UC ordering (V4+).
+    pub legacy_uc: Option<bool>,
+    /// Normalize reference strengths (V4+).
+    pub normalize_reference_strengths: Option<bool>,
+    /// Reproduce the euler-ancestral quirk (V4+).
+    pub deliberate_euler_ancestral_bug: Option<bool>,
+    /// Prefer Brownian noise (V4+).
+    pub prefer_brownian: Option<bool>,
+    /// Skip CFG above this sigma.
+    pub skip_cfg_above_sigma: Option<u32>,
+    /// Legacy prompt ordering (V3).
+    pub legacy: Option<bool>,
+    /// Legacy V3 extend prompt handling.
+    pub legacy_v3_extend: Option<bool>,
+    /// img2img strength applied by inpaint.
+    pub inpaint_img2img_strength: Option<u8>,
+    /// Apply straight alpha (V5).
+    pub straight_alpha: Option<bool>,
     /// Estimate cost only.
     pub estimate_only: Option<bool>,
 }
@@ -122,8 +168,24 @@ impl GenerationRequest {
     pub(super) fn to_core(&self) -> Result<novelai_image_sdk::models::GenerationRequest> {
         let json = serde_json::to_vec(self)
             .map_err(|e| napi::Error::from_reason(format!("request is not serializable: {e}")))?;
-        let spec: novelai_image_sdk::spec::GenerationRequestSpec = serde_json::from_slice(&json)
+        let spec: GenerationRequestSpec = serde_json::from_slice(&json)
             .map_err(|e| napi::Error::from_reason(format!("request shape mismatch: {e}")))?;
         spec.into_request().map_err(to_js_error)
     }
+}
+
+/// One additional character's prompt and placement (V4+).
+#[derive(Debug, Clone, Default, serde::Serialize)]
+#[napi(object)]
+pub struct CharacterPrompt {
+    /// The character prompt text (required, non-blank).
+    pub prompt: String,
+    /// Per-character undesired content.
+    pub negative_prompt: String,
+    /// Horizontal position (`0.1..=0.9`).
+    pub x: f64,
+    /// Vertical position (`0.1..=0.9`).
+    pub y: f64,
+    /// Whether the character is active.
+    pub enabled: bool,
 }

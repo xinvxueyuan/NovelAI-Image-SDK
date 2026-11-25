@@ -1402,7 +1402,7 @@ dependencies = [
 
 [[package]]
 name = "novelai-image-ffi-napi"
-version = "0.1.9"
+version = "0.2.0"
 dependencies = [
  "futures-util",
  "napi",
@@ -1415,9 +1415,11 @@ dependencies = [
 
 [[package]]
 name = "novelai-image-ffi-uniffi"
-version = "0.1.9"
+version = "0.2.0"
 dependencies = [
+ "futures-util",
  "novelai-image-sdk",
+ "serde",
  "serde_json",
  "thiserror",
  "uniffi",
@@ -1425,7 +1427,7 @@ dependencies = [
 
 [[package]]
 name = "novelai-image-sdk"
-version = "0.1.9"
+version = "0.2.0"
 dependencies = [
  "argon2",
  "async-stream",
@@ -2274,7 +2276,7 @@ dependencies = [
 
 [[package]]
 name = "uniffi-bindgen"
-version = "0.1.9"
+version = "0.2.0"
 dependencies = [
  "uniffi",
 ]
@@ -2650,7 +2652,7 @@ checksum = "3ad82d2a33cdc9674dc7465672f271e096168fcdbe0f799d9e6db8c5892679dc"
 
 [[package]]
 name = "xtask"
-version = "0.1.9"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",

@@ -161,6 +161,34 @@ impl NovelAiClient {
             .collect())
     }
 
+    /// Collect a streaming generation into its events (V4+ / V5 only).
+    ///
+    /// The Rust core exposes a true incremental stream, but UniFFI has no
+    /// streaming export; like the napi boundary's `collect_generation`, this
+    /// drains the stream into a list. `max_events` caps how many events are
+    /// lifted across FFI (the rest stay in the dropped stream).
+    pub async fn collect_generation(
+        &self,
+        request: GenerationRequest,
+        max_events: Option<u32>,
+    ) -> Result<Vec<GenerationEvent>, SdkError> {
+        use futures_util::{StreamExt, TryStreamExt};
+
+        let request = request.to_core()?;
+        let stream = self
+            .inner
+            .client
+            .stream_generation(&request)
+            .await
+            .map_err(SdkError::from)?;
+        let limit = max_events.map_or(usize::MAX, |max| max as usize);
+        stream
+            .take(limit)
+            .map(|event| event.map(to_ffi_event).map_err(SdkError::from))
+            .try_collect()
+            .await
+    }
+
     /// Resolve a request without sending it (validation + defaults + payload).
     pub fn resolve_request(&self, request: GenerationRequest) -> Result<ResolvedRequest, SdkError> {
         let request = request.to_core()?;
@@ -380,6 +408,21 @@ pub fn browser_headers() -> std::collections::HashMap<String, String> {
         .into_iter()
         .map(|(name, value)| (name.to_owned(), value.to_owned()))
         .collect()
+}
+
+/// Lift a core streaming event across the UniFFI boundary.
+fn to_ffi_event(event: novelai_image_sdk::response::GenerationEvent) -> GenerationEvent {
+    GenerationEvent {
+        event_type: event.event_type,
+        sample_index: event.sample_index,
+        step_index: event.step_index,
+        generation_id: event.generation_id,
+        sigma: event.sigma,
+        image: Image {
+            filename: event.image.filename,
+            data: event.image.data,
+        },
+    }
 }
 
 #[cfg(test)]
