@@ -429,7 +429,19 @@ jobs:
               echo "$name@$version is already published; skipping"
               return 0
             fi
-            npm stage publish "$target" --access public --provenance
+            # A version can also be waiting in the review queue from an earlier
+            # run. `npm stage list` needs interactive authentication and is not
+            # available here, so treat the 409 as the signal that it is already
+            # staged: the entry survives for a maintainer to approve, which is
+            # exactly the state we were trying to reach.
+            if output="$(npm stage publish "$target" --access public --provenance 2>&1)"; then
+              echo "$output"
+            elif printf '%s' "$output" | grep -q 'E409\|Cannot stage previously published'; then
+              echo "$name@$version is already staged for review; skipping"
+            else
+              echo "$output"
+              return 1
+            fi
           }
           for dir in npm/*/; do
             stage "$dir"
