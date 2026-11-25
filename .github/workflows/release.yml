@@ -383,18 +383,31 @@ jobs:
         shell: bash
         # Re-running a release must not fail just because the version is
         # already on the registry: that is a no-op, not an error.
+        #
+        # Per package, not once for the root: the six do not publish together.
+        # A run that dies after the first three leaves the rest behind, and a
+        # root-only check then skips every remaining one permanently.
         run: |
           set -euo pipefail
-          name="$(node -p "require('./package.json').name")"
           version="$(node -p "require('./package.json').version")"
-          if npm view "$name@$version" version >/dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "$name@$version is already on the registry; nothing to publish"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
+          pending=0
+          for dir in npm/*/; do
+            name="$(node -p "require('./$dir/package.json').name")"
+            if npm view "$name@$version" version >/dev/null 2>&1; then
+              echo "$name@$version is already on the registry"
+            else
+              echo "$name@$version still needs publishing"
+              pending=$((pending + 1))
+            fi
+          done
+          root="$(node -p "require('./package.json').name")"
+          if ! npm view "$root@$version" version >/dev/null 2>&1; then
+            echo "$root@$version still needs publishing"
+            pending=$((pending + 1))
           fi
+          echo "pending=$pending" >> "$GITHUB_OUTPUT"
       - name: Stage for review
-        if: needs.validate.outputs.dry_run == 'false' && steps.published.outputs.exists != 'true'
+        if: needs.validate.outputs.dry_run == 'false' && steps.published.outputs.pending != '0'
         working-directory: bindings/node
         shell: bash
         # Staged publishing, not a direct publish: CI puts the version in the
@@ -403,13 +416,25 @@ jobs:
         # workflow holds no long-lived credential.
         #
         # The platform packages go first because the root package's
-        # `optionalDependencies` point at them.
+        # `optionalDependencies` point at them. Each is skipped individually if
+        # the version is already on the registry, so a partial earlier run is
+        # repaired rather than published over.
         run: |
           set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          stage() {
+            local target="$1" name
+            name="$(node -p "require('./$target/package.json').name")"
+            if npm view "$name@$version" version >/dev/null 2>&1; then
+              echo "$name@$version is already published; skipping"
+              return 0
+            fi
+            npm stage publish "$target" --access public --provenance
+          }
           for dir in npm/*/; do
-            npm stage publish "$dir" --access public --provenance
+            stage "$dir"
           done
-          npm stage publish --access public --provenance
+          stage .
 
   kotlin:
     name: Kotlin JAR
