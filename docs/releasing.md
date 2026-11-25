@@ -43,6 +43,17 @@ open staging repository. `GET /manual/search/repositories?ip=any&state=open`
 lists them and `DELETE /manual/drop/repository/<key>` cleans up; then re-run the
 `maven` job.
 
+Central verifies each `.asc` against a public keyserver, so the matching
+**public** key must be published too. The workflow imports the signing secret,
+exports the public half, and sends it to the three servers Central supports
+(`keyserver.ubuntu.com`, `pgp.mit.edu`, `keys.openpgp.org`) before releasing.
+`keys.openpgp.org` speaks VKS rather than HKP — it wants
+`application/json` with a `keytext` field, not a form post.
+
+Versions 0.1.0–0.1.9 were uploaded to staging but never released, so they never
+reached Central. They are immutable releases in the SDK's own history; publish
+a fresh patch rather than trying to backfill them.
+
 ### npm trusted publishing
 
 The npm job holds **no token**. It authenticates with an OIDC ID token, which
