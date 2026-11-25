@@ -103,8 +103,28 @@ jobs:
       - uses: ./.github/actions/setup-rust
       - name: Verify the crate packages
         run: cargo publish -p novelai-image-sdk --locked --dry-run
-      - name: Publish
+      # crates.io is immutable, so a rerun of a version that already landed is a
+      # no-op rather than an error. Without this the whole release goes red for
+      # a registry that is already correct, and every downstream job that needs
+      # this one is skipped with it.
+      - name: Skip a version that is already on the index
+        id: published
         if: needs.validate.outputs.dry_run == 'false'
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(sed -n '/^\[workspace.package\]/,/^\[/p' Cargo.toml \
+            | grep -m1 '^version' | sed 's/.*= *"\(.*\)"/\1/')"
+          if curl -fsS -A "NovelAI-Image-SDK release workflow" \
+              "https://crates.io/api/v1/crates/novelai-image-sdk/${version}" \
+              -o /dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "novelai-image-sdk@${version} is already on crates.io"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Publish
+        if: needs.validate.outputs.dry_run == 'false' && steps.published.outputs.exists != 'true'
         run: cargo publish -p novelai-image-sdk --locked
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
