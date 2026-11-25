@@ -83,6 +83,14 @@ publishing {
                         url.set("https://opensource.org/licenses/MIT")
                     }
                 }
+                // Central rejects a publication without developer information.
+                developers {
+                    developer {
+                        id.set("xinvxueyuan")
+                        name.set("xinvxueyuan")
+                        url.set("https://github.com/xinvxueyuan")
+                    }
+                }
                 scm {
                     connection.set("scm:git:https://github.com/xinvxueyuan/NovelAI-Image-SDK.git")
                     developerConnection.set("scm:git:ssh://git@github.com/xinvxueyuan/NovelAI-Image-SDK.git")

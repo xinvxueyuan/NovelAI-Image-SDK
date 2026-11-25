@@ -6,6 +6,26 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Maven Central never received a release.** The Gradle publication PUTs the
+  artifacts to the OSSRH-compatible endpoint, which only stores them in an
+  implicitly created staging repository: Gradle's `maven-publish` sends no
+  signal marking where a deployment ends, so the service cannot hand it to the
+  Central Publisher Portal on its own. Every version through 0.1.9 stayed
+  invisible, and `io/github/xinvxueyuan/novelai-image-sdk` returned 404 on
+  repo1. The release workflow now calls
+  `POST /manual/upload/defaultRepository/<namespace>?publishing_type=automatic`
+  after publishing, which transfers the deployment and releases it to Central
+  once validation passes.
+- **The Kotlin POM lacked `developers`.** Central requires developer
+  information on every publication and would have rejected the staging
+  contents. The POM now carries the maintainer's id, name and GitHub URL.
+- **A rerun could not repair a sibling job.** `gh release create` fails when
+  the release already exists, so re-running the workflow for a failed
+  `maven` / `npm-publish` job went red at the last step. The job now uploads
+  missing assets with `--clobber` when the release is present.
+
 ## [0.2.0] - 2026-11-25
 
 Closes the FFI gap that kept the bindings from matching the Rust core.

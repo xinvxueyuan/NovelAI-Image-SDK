@@ -21,6 +21,28 @@ them exist, so set them up before the first tag.
 The `crate` job uses the `release` environment, so a required reviewer can gate
 publication there.
 
+### Maven Central needs a second call
+
+Gradle's `maven-publish` only makes plain `PUT` requests to the OSSRH-compatible
+endpoint, so the service has no way to tell when one deployment ends. It parks
+each upload in an implicitly created staging repository that the Central
+Publisher Portal never sees. After `gradle publish`, the workflow therefore
+calls:
+
+```text
+POST https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/<namespace>?publishing_type=automatic
+```
+
+with the same Portal token. `automatic` releases the deployment to Central once
+it passes validation; `user_managed` (the default) would instead leave it in the
+Portal queue for a manual click. The namespace must be the one owned by the
+account that minted the token — `io.github.xinvxueyuan` here.
+
+If a run fails between the upload and this call, the artifacts are stuck in an
+open staging repository. `GET /manual/search/repositories?ip=any&state=open`
+lists them and `DELETE /manual/drop/repository/<key>` cleans up; then re-run the
+`maven` job.
+
 ### npm trusted publishing
 
 The npm job holds **no token**. It authenticates with an OIDC ID token, which
@@ -151,7 +173,7 @@ credential at all.
 | `novelai-image-sdk` crate | `crate` | crates.io |
 | `novelai_image_sdk-*.whl` | `python-wheels` → `pypi` | PyPI (trusted publishing, OIDC) |
 | `*.node` addons, six packages | `npm` → `npm-publish` | npm (trusted publishing, staged for review) |
-| Kotlin JAR + natives | `kotlin` / `kotlin-native` → `maven` | Maven Central |
+| Kotlin JAR + natives | `kotlin` / `kotlin-native` → `maven` | Maven Central (uploads, then releases via the Portal) |
 | `NovelAIImageSDK.xcframework.zip` | `swift` | GitHub release; the checksum goes into `bindings/swift/Package.swift` |
 | Release notes | `github-release` | GitHub release |
 

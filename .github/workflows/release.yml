@@ -536,6 +536,28 @@ jobs:
           # Central URL selects the unauthenticated local repository branch.
           MAVEN_CENTRAL_URL: ${{ needs.validate.outputs.dry_run == 'true' && format('file://{0}/maven-dry-run', github.workspace) || '' }}
         run: gradle publish --no-daemon
+      # The OSSRH-compatible endpoint only *stores* the upload. Gradle's
+      # `maven-publish` makes plain PUTs, so the service cannot tell where one
+      # deployment ends; until this call is made the artifacts sit in an
+      # implicitly created staging repository that the Portal never sees. That
+      # is why every release before 0.2.0 was absent from Central.
+      #
+      # `publishing_type=automatic` uploads the deployment and releases it to
+      # Central once validation passes, which is the whole point of a tag. The
+      # same namespace must come from the account that minted the token.
+      - name: Hand the deployment to the Central Publisher Portal
+        if: needs.validate.outputs.dry_run == 'false'
+        env:
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          NAMESPACE: io.github.xinvxueyuan
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error \
+            --retry 3 --retry-delay 5 --retry-connrefused \
+            -u "$MAVEN_CENTRAL_USERNAME:$MAVEN_CENTRAL_PASSWORD" \
+            -X POST \
+            "https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/${NAMESPACE}?publishing_type=automatic"
       - name: List the published artifacts
         working-directory: bindings/kotlin
         run: find build/repo maven-dry-run -name "*.jar" -o -name "*.pom" 2>/dev/null | head -20 || true
@@ -592,7 +614,16 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           version="${{ needs.validate.outputs.version }}"
-          gh release create "v$version" \
-            --title "v$version" \
-            --notes-file "release-notes/$version.json" \
-            artifacts/**/*.whl artifacts/**/*.node artifacts/**/*.zip
+          # A rerun is the normal repair path for a sibling job, and by then the
+          # release (and its assets) already exist. `create` would fail on that,
+          # so only create it when absent, then upload what is missing.
+          if gh release view "v$version" >/dev/null 2>&1; then
+            gh release upload "v$version" \
+              artifacts/**/*.whl artifacts/**/*.node artifacts/**/*.zip \
+              --clobber
+          else
+            gh release create "v$version" \
+              --title "v$version" \
+              --notes-file "release-notes/$version.json" \
+              artifacts/**/*.whl artifacts/**/*.node artifacts/**/*.zip
+          fi
